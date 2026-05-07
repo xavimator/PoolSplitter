@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Billar — Sala en directo</title>
+<title>PoolSplitter — Sala en directo</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -322,6 +322,10 @@
     padding: 0.32rem 0.52rem; font-size: 0.83rem; width: 120px;
     color: var(--silver-dim);
   }
+  .players-table select#pmins, .players-table select[id^="pmins"] {
+    width: 100px;
+    color: var(--silver);
+  }
   .players-table select.selected { color: var(--cyan-dim); }
   .players-table input:focus, .players-table select:focus {
     background: var(--navy) !important; border-color: var(--blue-b) !important;
@@ -402,7 +406,7 @@
 
   <header>
     <div class="header-rule"><span></span><div class="ball"></div><span></span></div>
-    <h1>BIL<span>LAR</span></h1>
+    <h1>Pool<span>Splitter</span></h1>
     <p class="tagline">// sala en directo — tiempo real //</p>
   </header>
 
@@ -538,8 +542,10 @@ for (let i = 1; i <= NUM_PLAYERS; i++) {
                oninput="onPlayerInput(${i})"></td>
     <td><select              id="pmesa${i}" onchange="onPlayerInput(${i})">
           <option value="">— Mesa —</option></select></td>
-    <td><input type="number" id="pmins${i}" min="0" placeholder="0"
-               oninput="onPlayerInput(${i})"></td>
+    <td><select id="pmins${i}" onchange="onPlayerInput(${i})">
+          ${Array.from({length:21},(_,k)=>k*15).map(m=>`<option value="${m}"${m===0?' selected':''}>
+            ${m===0?'— min —':m+' min'}</option>`).join('')}
+        </select></td>
     <td class="pct-cell"  id="ppct${i}">—</td>
     <td class="result-cell" id="pres${i}"><span class="result-empty">—</span></td>
   `;
@@ -572,7 +578,7 @@ function updatePlayerUI(i, data) {
     mesaEl.value = data.mesa || '';
     mesaEl.className = data.mesa ? 'selected' : '';
   }
-  if (document.activeElement !== minsEl) minsEl.value = data.mins > 0 ? data.mins : '';
+  if (document.activeElement !== minsEl) minsEl.value = data.mins > 0 ? data.mins : '0';
 
   // Flash
   row.classList.remove('flash-row');
@@ -807,7 +813,7 @@ function clearAll() {
     suppressSync = true;
     document.getElementById(`pname${i}`).value = '';
     document.getElementById(`pmesa${i}`).value = '';
-    document.getElementById(`pmins${i}`).value = '';
+    document.getElementById(`pmins${i}`).value = '0';
     suppressSync = false;
   }
   updateMesaSelectors();
