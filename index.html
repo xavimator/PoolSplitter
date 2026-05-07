@@ -425,9 +425,9 @@
     <div id="tablesList"></div>
     <button class="btn-add-table" onclick="addTable()">+ Añadir mesa</button>
     <div class="formula-box">
-      <strong style="color:var(--cyan-dim)">Reparto proporcional:</strong>
-      el coste total de todas las mesas se reparte según los minutos de cada jugador.<br>
-      <code>pago = (minutos_jugador ÷ Σ minutos_jugados) × coste_total_sesión</code>
+      <strong style="color:var(--cyan-dim)">Reparto por mesa:</strong>
+      cada mesa se divide <strong style="color:var(--silver)">solo</strong> entre los jugadores que la usaron, proporcional a sus minutos.<br>
+      <code>pago = (tus_minutos ÷ Σ minutos_de_tu_mesa) × coste_de_tu_mesa</code>
     </div>
   </div>
 
@@ -725,62 +725,101 @@ function updateMesaSelectors() {
 
 /* ═══════════════════════════════════════════
    CALCULATION
+   Cada mesa se reparte SOLO entre sus jugadores,
+   en proporción a los minutos de cada uno.
 ═══════════════════════════════════════════ */
 function recalculate() {
-  let costoTotal   = 0;
-  let minMesaTotal = 0;
-  let mesasActivas = 0;
 
+  // 1. Coste por mesa
+  const tableCost = {}; // tableKey → €
+  let costoTotal   = 0;
+  let mesasActivas = 0;
   Object.entries(tablesData).forEach(([key, d]) => {
     if (!d || d._del) return;
     const cost = ((d.mins || 0) / 60) * (d.ph || 0);
-    if (cost > 0) { costoTotal += cost; minMesaTotal += (d.mins || 0); mesasActivas++; }
+    tableCost[key] = cost;
+    if (cost > 0) { costoTotal += cost; mesasActivas++; }
   });
 
-  let totalJugados = 0;
+  // 2. Agrupar jugadores por mesa y sumar sus minutos
+  const tablePlayerMins = {}; // tableKey → total mins de esa mesa
   for (let i = 1; i <= NUM_PLAYERS; i++) {
-    totalJugados += parseFloat(document.getElementById(`pmins${i}`).value) || 0;
+    const mesaKey = document.getElementById(`pmesa${i}`).value;
+    const mins    = parseFloat(document.getElementById(`pmins${i}`).value) || 0;
+    if (!mesaKey || mins <= 0) continue;
+    tablePlayerMins[mesaKey] = (tablePlayerMins[mesaKey] || 0) + mins;
   }
 
+  // 3. Calcular pago de cada jugador dentro de su mesa
+  const playerPago = {}; // index → €
+  let totalJugados = 0;
   let totalCobrado = 0;
+
+  for (let i = 1; i <= NUM_PLAYERS; i++) {
+    const mesaKey = document.getElementById(`pmesa${i}`).value;
+    const mins    = parseFloat(document.getElementById(`pmins${i}`).value) || 0;
+    if (mins > 0) totalJugados += mins;
+    if (!mesaKey || mins <= 0) { playerPago[i] = null; continue; }
+
+    const mesaTotalMins = tablePlayerMins[mesaKey] || 0;
+    const mesaCost      = tableCost[mesaKey] || 0;
+
+    if (mesaCost > 0 && mesaTotalMins > 0) {
+      playerPago[i] = (mins / mesaTotalMins) * mesaCost;
+      totalCobrado += playerPago[i];
+    } else {
+      playerPago[i] = mesaCost === 0 ? -1 : null; // -1 = mesa sin precio
+    }
+  }
+
+  // 4. Render filas jugadores
   for (let i = 1; i <= NUM_PLAYERS; i++) {
     const mins    = parseFloat(document.getElementById(`pmins${i}`).value) || 0;
+    const mesaKey = document.getElementById(`pmesa${i}`).value;
     const pctCell = document.getElementById(`ppct${i}`);
     const resCell = document.getElementById(`pres${i}`);
-    if (mins <= 0) { pctCell.innerHTML = '—'; resCell.innerHTML = '<span class="result-empty">—</span>'; continue; }
-    const pct = (mins / totalJugados) * 100;
-    if (costoTotal > 0) {
-      const pago = (mins / totalJugados) * costoTotal;
-      totalCobrado += pago;
-      pctCell.innerHTML = `${pct.toFixed(1)}%<div class="bar-track"><div class="bar-fill" style="width:${Math.min(pct,100)}%"></div></div>`;
-      resCell.innerHTML = `<div class="result-amount">€${pago.toFixed(2)}</div><div class="result-mins">${mins} min</div>`;
+    const pago    = playerPago[i];
+
+    if (mins <= 0 || !mesaKey) {
+      pctCell.innerHTML = '—';
+      resCell.innerHTML = '<span class="result-empty">—</span>';
+      continue;
+    }
+
+    const mesaTotalMins = tablePlayerMins[mesaKey] || 1;
+    const pct = (mins / mesaTotalMins) * 100;
+    pctCell.innerHTML = `${pct.toFixed(1)}%<div class="bar-track"><div class="bar-fill" style="width:${Math.min(pct,100)}%"></div></div>`;
+
+    if (pago > 0) {
+      const mesaNombre = tablesData[mesaKey]?.name || mesaKey;
+      resCell.innerHTML = `<div class="result-amount">€${pago.toFixed(2)}</div><div class="result-mins">${mins} min · ${mesaNombre}</div>`;
+    } else if (pago === -1) {
+      resCell.innerHTML = '<span class="result-empty">mesa sin precio</span>';
     } else {
-      pctCell.innerHTML = `${pct.toFixed(1)}%<div class="bar-track"><div class="bar-fill" style="width:${Math.min(pct,100)}%"></div></div>`;
       resCell.innerHTML = '<span class="result-empty">sin precio</span>';
     }
   }
 
-  // Totals
-  const tC = document.getElementById('totCosto'); const tCS = document.getElementById('totCostoSub');
-  if (costoTotal > 0) { tC.textContent = `€${costoTotal.toFixed(2)}`; tCS.textContent = `${mesasActivas} mesa${mesasActivas!==1?'s':''} · ${minMesaTotal} min`; }
-  else { tC.textContent = '—'; tCS.textContent = ''; }
+  // 5. Totales
+  const tC = document.getElementById('totCosto'), tCS = document.getElementById('totCostoSub');
+  if (costoTotal > 0) {
+    tC.textContent  = `€${costoTotal.toFixed(2)}`;
+    tCS.textContent = `${mesasActivas} mesa${mesasActivas!==1?'s':''} activas`;
+  } else { tC.textContent = '—'; tCS.textContent = ''; }
 
   document.getElementById('totMesas').textContent    = Object.values(tablesData).filter(d=>d&&!d._del).length;
   document.getElementById('totMesasSub').textContent = mesasActivas > 0 ? `${mesasActivas} con precio` : 'ninguna con precio';
 
-  const tJ = document.getElementById('totJugados'); const tD = document.getElementById('totDiff');
+  const tJ = document.getElementById('totJugados'), tD = document.getElementById('totDiff');
   tJ.textContent = `${totalJugados} min`;
-  if (minMesaTotal > 0 && totalJugados > 0) {
-    const diff = totalJugados - minMesaTotal;
-    tJ.className = diff > 0 ? 'total-value warn' : 'total-value ok';
-    tD.textContent = diff > 0 ? `▲ ${diff} min sobre contrato` : diff < 0 ? `▼ ${Math.abs(diff)} min sin asignar` : '✓ exacto';
-  } else { tJ.className = 'total-value ok'; tD.textContent = ''; }
+  tJ.className   = 'total-value ok';
+  tD.textContent = '';
 
-  const tCob = document.getElementById('totCobrado'); const tR = document.getElementById('totRestante');
-  if (costoTotal > 0 && totalJugados > 0) {
+  const tCob = document.getElementById('totCobrado'), tR = document.getElementById('totRestante');
+  if (totalCobrado > 0) {
     tCob.textContent = `€${totalCobrado.toFixed(2)}`;
     const r = costoTotal - totalCobrado;
-    tR.textContent = r > 0.005 ? `Faltan €${r.toFixed(2)}` : r < -0.005 ? `⚠ €${Math.abs(r).toFixed(2)} de exceso` : '✓ cubierto al 100%';
+    tR.textContent = r > 0.005 ? `Faltan €${r.toFixed(2)} por asignar` : r < -0.005 ? `⚠ exceso €${Math.abs(r).toFixed(2)}` : '✓ cubierto al 100%';
   } else { tCob.textContent = '—'; tR.textContent = ''; }
 }
 
