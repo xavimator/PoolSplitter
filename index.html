@@ -441,7 +441,7 @@
           <th>Nombre</th>
           <th>Mesa</th>
           <th>Min.</th>
-          <th class="center">%</th>
+          <th class="center">% de su mesa</th>
           <th class="right">A pagar</th>
         </tr>
       </thead>
@@ -772,7 +772,12 @@ function recalculate() {
     }
   }
 
-  // 4. Render filas jugadores
+  // 4. Render filas jugadores — agrupadas por mesa
+  // Primero limpiamos las filas de separador de mesa previas
+  document.querySelectorAll('.mesa-header-row').forEach(r => r.remove());
+
+  // Recorremos jugadores, insertando cabecera de mesa al cambiar
+  let lastMesaKey = null;
   for (let i = 1; i <= NUM_PLAYERS; i++) {
     const mins    = parseFloat(document.getElementById(`pmins${i}`).value) || 0;
     const mesaKey = document.getElementById(`pmesa${i}`).value;
@@ -786,13 +791,28 @@ function recalculate() {
       continue;
     }
 
+    // Cabecera de grupo si cambia la mesa (primera aparición de esa mesa)
+    if (mesaKey !== lastMesaKey) {
+      const mesaNombre  = tablesData[mesaKey]?.name || mesaKey;
+      const mesaCostStr = (tableCost[mesaKey] || 0) > 0 ? ` · €${(tableCost[mesaKey]).toFixed(2)}` : '';
+      const mesaMins    = tablePlayerMins[mesaKey] || 0;
+      const row = document.getElementById(`prow${i}`);
+      const sep = document.createElement('tr');
+      sep.className = 'mesa-header-row';
+      sep.innerHTML = `<td colspan="6">
+        <span class="mesa-tag">${mesaNombre}</span>
+        <span class="mesa-tag-sub">${mesaMins} min entre sus jugadores${mesaCostStr}</span>
+      </td>`;
+      row.parentNode.insertBefore(sep, row);
+      lastMesaKey = mesaKey;
+    }
+
     const mesaTotalMins = tablePlayerMins[mesaKey] || 1;
     const pct = (mins / mesaTotalMins) * 100;
-    pctCell.innerHTML = `${pct.toFixed(1)}%<div class="bar-track"><div class="bar-fill" style="width:${Math.min(pct,100)}%"></div></div>`;
+    pctCell.innerHTML = `${pct.toFixed(1)}%<div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>`;
 
     if (pago > 0) {
-      const mesaNombre = tablesData[mesaKey]?.name || mesaKey;
-      resCell.innerHTML = `<div class="result-amount">€${pago.toFixed(2)}</div><div class="result-mins">${mins} min · ${mesaNombre}</div>`;
+      resCell.innerHTML = `<div class="result-amount">€${pago.toFixed(2)}</div><div class="result-mins">${mins} min</div>`;
     } else if (pago === -1) {
       resCell.innerHTML = '<span class="result-empty">mesa sin precio</span>';
     } else {
