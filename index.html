@@ -378,6 +378,62 @@
   .total-value.dim  { color:var(--silver); }
   .total-sub { font-family:'JetBrains Mono',monospace; font-size:0.63rem; color:var(--silver-dark); margin-top:2px; }
 
+  /* ── MESA HEADER ROW ── */
+  .mesa-header-row td {
+    padding: 0.9rem 0.45rem 0.3rem;
+    display: flex; align-items: baseline; gap: 0.6rem;
+  }
+  .mesa-tag {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600; font-size: 0.8rem;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--cyan); background: rgba(56,189,248,0.1);
+    border: 1px solid rgba(56,189,248,0.25);
+    border-radius: 3px; padding: 0.1rem 0.5rem;
+  }
+  .mesa-tag-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.66rem; color: var(--silver-dark);
+  }
+
+  /* ── SUMMARY CARD ── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+  }
+  .summary-player {
+    background: var(--felt-mid);
+    border: 1px solid rgba(59,130,246,0.18);
+    border-radius: 5px;
+    padding: 0.9rem 1rem;
+    display: flex; flex-direction: column; gap: 0.25rem;
+    transition: border-color 0.2s;
+  }
+  .summary-player:hover { border-color: rgba(56,189,248,0.4); }
+  .summary-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600; font-size: 1.05rem;
+    letter-spacing: 0.06em; color: var(--silver);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .summary-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.55rem; font-weight: 500;
+    color: var(--cyan); line-height: 1.1;
+  }
+  .summary-detail {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem; color: var(--silver-dark);
+    line-height: 1.5; margin-top: 0.1rem;
+  }
+  .summary-empty {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem; color: var(--silver-dark);
+    text-align: center; padding: 0.5rem;
+    grid-column: 1/-1;
+  }
+
   /* ── ACTIONS ── */
   .actions { display:flex; gap:0.7rem; flex-wrap:wrap; justify-content:flex-end; }
   button.btn-primary, button.btn-ghost {
@@ -428,6 +484,14 @@
       <strong style="color:var(--cyan-dim)">Reparto por mesa:</strong>
       cada mesa se divide <strong style="color:var(--silver)">solo</strong> entre los jugadores que la usaron, proporcional a sus minutos.<br>
       <code>pago = (tus_minutos ÷ Σ minutos_de_tu_mesa) × coste_de_tu_mesa</code>
+    </div>
+  </div>
+
+  <!-- SUMMARY BY PLAYER -->
+  <div class="card">
+    <div class="card-title"><div class="dot"></div>Resumen — Total por jugador</div>
+    <div class="summary-grid" id="summaryGrid">
+      <div class="summary-empty">Introduce jugadores y mesas para ver el resumen</div>
     </div>
   </div>
 
@@ -820,7 +884,35 @@ function recalculate() {
     }
   }
 
-  // 5. Totales
+  // 4b. Render resumen por nombre
+  const byName = {}; // nombre → { total, detalles[] }
+  for (let i = 1; i <= NUM_PLAYERS; i++) {
+    const name    = document.getElementById(`pname${i}`).value.trim();
+    const mins    = parseFloat(document.getElementById(`pmins${i}`).value) || 0;
+    const mesaKey = document.getElementById(`pmesa${i}`).value;
+    const pago    = playerPago[i];
+    if (!name || mins <= 0 || !mesaKey || !(pago > 0)) continue;
+    if (!byName[name]) byName[name] = { total: 0, detalles: [] };
+    byName[name].total += pago;
+    byName[name].detalles.push(`${tablesData[mesaKey]?.name || mesaKey}: ${mins} min`);
+  }
+
+  const grid = document.getElementById('summaryGrid');
+  const names = Object.keys(byName);
+  if (names.length === 0) {
+    grid.innerHTML = '<div class="summary-empty">Introduce jugadores y mesas para ver el resumen</div>';
+  } else {
+    grid.innerHTML = names.sort().map(name => {
+      const { total, detalles } = byName[name];
+      return `<div class="summary-player">
+        <div class="summary-name">${name}</div>
+        <div class="summary-amount">€${total.toFixed(2)}</div>
+        <div class="summary-detail">${detalles.join('<br>')}</div>
+      </div>`;
+    }).join('');
+  }
+
+
   const tC = document.getElementById('totCosto'), tCS = document.getElementById('totCostoSub');
   if (costoTotal > 0) {
     tC.textContent  = `€${costoTotal.toFixed(2)}`;
