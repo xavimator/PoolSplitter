@@ -475,6 +475,14 @@
     <span class="session-hint">Comparte el enlace con los jugadores</span>
   </div>
 
+  <!-- SUMMARY BY PLAYER (first) -->
+  <div class="card">
+    <div class="card-title"><div class="dot"></div>Resumen — Total por jugador</div>
+    <div class="summary-grid" id="summaryGrid">
+      <div class="summary-empty">Introduce jugadores y mesas para ver el resumen</div>
+    </div>
+  </div>
+
   <!-- TABLES -->
   <div class="card">
     <div class="card-title"><div class="dot"></div>Mesas de la sesión</div>
@@ -484,14 +492,6 @@
       <strong style="color:var(--cyan-dim)">Reparto por mesa:</strong>
       cada mesa se divide <strong style="color:var(--silver)">solo</strong> entre los jugadores que la usaron, proporcional a sus minutos.<br>
       <code>pago = (tus_minutos ÷ Σ minutos_de_tu_mesa) × coste_de_tu_mesa</code>
-    </div>
-  </div>
-
-  <!-- SUMMARY BY PLAYER -->
-  <div class="card">
-    <div class="card-title"><div class="dot"></div>Resumen — Total por jugador</div>
-    <div class="summary-grid" id="summaryGrid">
-      <div class="summary-empty">Introduce jugadores y mesas para ver el resumen</div>
     </div>
   </div>
 
@@ -681,11 +681,19 @@ tablesRef.map().on((data, key) => {
 /* ═══════════════════════════════════════════
    TABLE ROW DOM
 ═══════════════════════════════════════════ */
+function minsOpts(sel=0) {
+  return Array.from({length:21},(_,k)=>k*15)
+    .map(m=>`<option value="${m}"${m==sel?' selected':''}>${m===0?'— min —':m+' min'}</option>`).join('');
+}
+function phOpts(sel=0) {
+  return Array.from({length:101},(_,k)=>k)
+    .map(p=>`<option value="${p}"${p==sel?' selected':''}>${p===0?'— €/h —':p+' €/h'}</option>`).join('');
+}
+
 function patchTableRow(key, data) {
   let row = document.getElementById(`trow-${key}`);
 
   if (!row) {
-    // Create
     row = document.createElement('div');
     row.className = 'table-row';
     row.id = `trow-${key}`;
@@ -693,15 +701,15 @@ function patchTableRow(key, data) {
     row.innerHTML = `
       <div>
         <label>Nombre de la mesa</label>
-        <input type="text"   id="tname-${key}" placeholder="Mesa" oninput="onTableInput('${key}')">
+        <input type="text" id="tname-${key}" placeholder="Mesa" oninput="onTableInput('${key}')">
       </div>
       <div>
         <label>€ / hora</label>
-        <input type="number" id="tph-${key}"   min="0" step="0.5" placeholder="0.00" oninput="onTableInput('${key}')">
+        <select id="tph-${key}" onchange="onTableInput('${key}')">${phOpts(data.ph||0)}</select>
       </div>
       <div>
         <label>Minutos usados</label>
-        <input type="number" id="tmins-${key}" min="0" placeholder="60" oninput="onTableInput('${key}')">
+        <select id="tmins-${key}" onchange="onTableInput('${key}')">${minsOpts(data.mins||0)}</select>
       </div>
       <div>
         <label>Coste mesa</label>
@@ -709,14 +717,12 @@ function patchTableRow(key, data) {
       </div>
       <button class="btn-remove" onclick="removeTable('${key}')" title="Eliminar mesa">×</button>
     `;
-    // Insert in order
     const list    = document.getElementById('tablesList');
     const allRows = [...list.querySelectorAll('[data-key]')];
     const inserted = allRows.find(r => (tablesData[r.dataset.key]?.order || 0) > (data.order || 0));
     inserted ? list.insertBefore(row, inserted) : list.appendChild(row);
   }
 
-  // Patch fields (only if not focused)
   const nameEl = document.getElementById(`tname-${key}`);
   const phEl   = document.getElementById(`tph-${key}`);
   const minsEl = document.getElementById(`tmins-${key}`);
@@ -724,8 +730,8 @@ function patchTableRow(key, data) {
 
   suppressSync = true;
   if (nameEl && document.activeElement !== nameEl) nameEl.value = data.name || '';
-  if (phEl   && document.activeElement !== phEl)   phEl.value   = data.ph   > 0 ? data.ph   : '';
-  if (minsEl && document.activeElement !== minsEl) minsEl.value = data.mins > 0 ? data.mins : '';
+  if (phEl   && document.activeElement !== phEl)   phEl.value   = data.ph   >= 0 ? data.ph   : 0;
+  if (minsEl && document.activeElement !== minsEl) minsEl.value = data.mins >= 0 ? data.mins : 0;
   suppressSync = false;
 
   if (costEl) {
