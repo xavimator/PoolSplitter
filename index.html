@@ -704,18 +704,20 @@ for (let i = 1; i <= NUM_PLAYERS; i++) {
 }
 
 /* ═══════════════════════════════════════════
-   GUN → PLAYERS LISTENERS
+   GUN → PLAYERS LISTENERS (solo modo live)
 ═══════════════════════════════════════════ */
-for (let i = 1; i <= NUM_PLAYERS; i++) {
-  const key = `p${i}`;
-  playersRef.get(key).on((data) => {
-    if (!data) return;
-    playersData[key] = data;
-    suppressSync = true;
-    renderPlayerCard(i, data);
-    suppressSync = false;
-    recalculate();
-  });
+if (!isLocal) {
+  for (let i = 1; i <= NUM_PLAYERS; i++) {
+    const key = `p${i}`;
+    playersRef.get(key).on((data) => {
+      if (!data) return;
+      playersData[key] = data;
+      suppressSync = true;
+      renderPlayerCard(i, data);
+      suppressSync = false;
+      recalculate();
+    });
+  }
 }
 
 function renderPlayerCard(i, data) {
@@ -809,10 +811,11 @@ function readPlayerRows(i) {
 
 function syncPlayer(i) {
   if (suppressSync) return;
-  playersRef.get(`p${i}`).put({
+  const data = {
     name: document.getElementById(`pname${i}`)?.value || '',
     rowsJson: JSON.stringify(playerRows[`p${i}`]||[])
-  });
+  };
+  if (isLocal) { localSave(); } else { playersRef.get(`p${i}`).put(data); }
 }
 
 /* ═══════════════════════════════════════════
@@ -978,20 +981,62 @@ function clearAll() {
   }
   updateMesaSelectors();
   recalculate();
-}
+/* ═══════════════════════════════════════════
+   LOCAL STORAGE HELPERS
 ═══════════════════════════════════════════ */
-tablesRef.map().on((data, key) => {
-  if (!data || data._del) {
-    delete tablesData[key];
-    const row = document.getElementById(`trow-${key}`);
-    if (row) row.remove();
-  } else {
-    tablesData[key] = data;
-    patchTableRow(key, data);
+function localSave() {
+  localStorage.setItem(`ps-t-${sessionId}`, JSON.stringify(tablesData));
+  const pd = {};
+  for (let i = 1; i <= NUM_PLAYERS; i++) {
+    pd[`p${i}`] = {
+      name: document.getElementById(`pname${i}`)?.value || '',
+      rowsJson: JSON.stringify(playerRows[`p${i}`] || [])
+    };
   }
-  updateMesaSelectors();
+  localStorage.setItem(`ps-p-${sessionId}`, JSON.stringify(pd));
+}
+
+function localLoad() {
+  try {
+    const tables = JSON.parse(localStorage.getItem(`ps-t-${sessionId}`) || '{}');
+    Object.entries(tables).forEach(([key, data]) => {
+      if (!data || data._del) return;
+      tablesData[key] = data;
+      patchTableRow(key, data);
+    });
+    updateMesaSelectors();
+  } catch(e) {}
+  try {
+    const players = JSON.parse(localStorage.getItem(`ps-p-${sessionId}`) || '{}');
+    Object.entries(players).forEach(([key, data]) => {
+      const i = parseInt(key.slice(1));
+      if (!i) return;
+      playersData[key] = data;
+      suppressSync = true;
+      renderPlayerCard(i, data);
+      suppressSync = false;
+    });
+  } catch(e) {}
   recalculate();
-});
+}
+
+/* ═══════════════════════════════════════════
+   GUN → TABLES LISTENER (solo modo live)
+═══════════════════════════════════════════ */
+if (!isLocal) {
+  tablesRef.map().on((data, key) => {
+    if (!data || data._del) {
+      delete tablesData[key];
+      const row = document.getElementById(`trow-${key}`);
+      if (row) row.remove();
+    } else {
+      tablesData[key] = data;
+      patchTableRow(key, data);
+    }
+    updateMesaSelectors();
+    recalculate();
+  });
+}
 
 /* ═══════════════════════════════════════════
    TABLE ROW DOM
@@ -1007,7 +1052,6 @@ function phOpts(sel=0) {
 
 function patchTableRow(key, data) {
   let row = document.getElementById(`trow-${key}`);
-
   if (!row) {
     row = document.createElement('div');
     row.className = 'table-row';
@@ -1037,20 +1081,17 @@ function patchTableRow(key, data) {
     const inserted = allRows.find(r => (tablesData[r.dataset.key]?.order || 0) > (data.order || 0));
     inserted ? list.insertBefore(row, inserted) : list.appendChild(row);
   }
-
   const nameEl = document.getElementById(`tname-${key}`);
   const phEl   = document.getElementById(`tph-${key}`);
   const minsEl = document.getElementById(`tmins-${key}`);
   const costEl = document.getElementById(`tcost-${key}`);
-
   suppressSync = true;
   if (nameEl && document.activeElement !== nameEl) nameEl.value = data.name || '';
   if (phEl   && document.activeElement !== phEl)   phEl.value   = data.ph   >= 0 ? data.ph   : 0;
   if (minsEl && document.activeElement !== minsEl) minsEl.value = data.mins >= 0 ? data.mins : 0;
   suppressSync = false;
-
   if (costEl) {
-    const cost = ((data.mins || 0) / 60) * (data.ph || 0);
+    const cost = ((data.mins||0)/60)*(data.ph||0);
     costEl.textContent = cost > 0 ? `€${cost.toFixed(2)}` : '—';
   }
 }
@@ -1060,28 +1101,67 @@ function onTableInput(key) {
   const ph   = parseFloat(document.getElementById(`tph-${key}`)?.value)   || 0;
   const mins = parseFloat(document.getElementById(`tmins-${key}`)?.value) || 0;
   const name = document.getElementById(`tname-${key}`)?.value || '';
-  const cost = (mins / 60) * ph;
   const costEl = document.getElementById(`tcost-${key}`);
-  if (costEl) costEl.textContent = cost > 0 ? `€${cost.toFixed(2)}` : '—';
-
-  tablesRef.get(key).put({ name, ph, mins, order: tablesData[key]?.order || Date.now(), _del: false });
+  if (costEl) costEl.textContent = (mins/60)*ph > 0 ? `€${((mins/60)*ph).toFixed(2)}` : '—';
+  const data = { name, ph, mins, order: tablesData[key]?.order || Date.now(), _del: false };
+  tablesData[key] = data;
+  if (isLocal) { localSave(); } else { tablesRef.get(key).put(data); }
   updateMesaSelectors();
   recalculate();
 }
 
 function addTable() {
-  const key = 't' + Date.now();
-  const data = { name: `Mesa ${Object.keys(tablesData).length + 1}`, ph: 0, mins: 0, order: Date.now(), _del: false };
-  tablesRef.get(key).put(data);
+  const key  = 't' + Date.now();
+  const data = { name: `Mesa ${Object.values(tablesData).filter(d=>d&&!d._del).length + 1}`, ph: 0, mins: 0, order: Date.now(), _del: false };
+  tablesData[key] = data;
+  patchTableRow(key, data);
+  updateMesaSelectors();
+  recalculate();
+  if (isLocal) { localSave(); } else { tablesRef.get(key).put(data); }
 }
 
 function removeTable(key) {
   const row = document.getElementById(`trow-${key}`);
-  if (row) { row.style.opacity = '0'; row.style.transform = 'translateY(-4px)'; row.style.transition = 'all 0.2s'; setTimeout(() => row.remove(), 200); }
-  tablesRef.get(key).put({ _del: true });
+  if (row) { row.style.opacity='0'; row.style.transform='translateY(-4px)'; row.style.transition='all 0.2s'; setTimeout(()=>row.remove(),200); }
   delete tablesData[key];
+  if (isLocal) { localSave(); } else { tablesRef.get(key).put({ _del: true }); }
   updateMesaSelectors();
   recalculate();
+}
+
+/* ═══════════════════════════════════════════
+   CLEAR ALL
+═══════════════════════════════════════════ */
+function clearAll() {
+  if (!confirm('¿Seguro que quieres limpiar toda la sesión?')) return;
+  if (!isLocal) Object.keys(tablesData).forEach(key => tablesRef.get(key).put({ _del:true }));
+  tablesData = {};
+  document.getElementById('tablesList').innerHTML = '';
+  for (let i = 1; i <= NUM_PLAYERS; i++) {
+    playerRows[`p${i}`] = [];
+    if (!isLocal) playersRef.get(`p${i}`).put({ name:'', rowsJson:'[]' });
+    const nameEl = document.getElementById(`pname${i}`);
+    if (nameEl) nameEl.value = '';
+    const cont = document.getElementById(`pmrows${i}`);
+    if (cont) cont.innerHTML = '';
+    const tot = document.getElementById(`ptotal${i}`);
+    if (tot) { tot.textContent='—'; tot.className='player-total'; }
+  }
+  if (isLocal) localSave();
+  updateMesaSelectors();
+  recalculate();
+}
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+if (isLocal) {
+  localLoad();
+} else {
+  // Live mode: add 2 default tables only if session is empty
+  setTimeout(() => {
+    if (Object.keys(tablesData).length === 0) { addTable(); addTable(); }
+  }, 800);
 }
 
 </script>
