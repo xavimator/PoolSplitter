@@ -610,8 +610,9 @@ document.getElementById('sessionIdBox').textContent = sessionId;
 ═══════════════════════════════════════════ */
 const gun = Gun({
   peers: [
-    'https://gun-manhattan.herokuapp.com/gun',
-    'https://peer.wallie.io/gun'
+    'https://gun.eco/gun',
+    'wss://gun-us.herokuapp.com/gun',
+    'https://gundb-relay-mlmbl.ondigitalocean.app/gun'
   ],
   localStorage: true
 });
@@ -624,13 +625,13 @@ const playersRef = root.get('players');
 let peerCount = 0;
 gun.on('hi',  () => { peerCount++; setStatus(true); });
 gun.on('bye', () => { peerCount = Math.max(0, peerCount - 1); if (!peerCount) setStatus(false); });
-setTimeout(() => { if (!peerCount) setStatus(false); }, 3500);
+setTimeout(() => { if (!peerCount) setStatus(false); }, 5000);
 
 function setStatus(online) {
   const dot   = document.getElementById('liveDot');
   const label = document.getElementById('connLabel');
-  dot.className   = 'live-dot ' + (online ? 'on' : 'off');
-  label.textContent = online ? 'En directo' : 'Solo local';
+  dot.className     = 'live-dot ' + (online ? 'on' : 'off');
+  label.textContent = online ? 'En directo' : 'Solo local (sin sync)';
 }
 
 /* ═══════════════════════════════════════════
@@ -641,9 +642,6 @@ let tablesData  = {};   // key → {name, ph, mins, order}
 let playersData = {};   // "p1"…"p10" → {name, mesa, mins}
 let suppressSync = false; // prevent echo loops
 
-/* ═══════════════════════════════════════════
-   PLAYER ROWS (built once)
-═══════════════════════════════════════════ */
 /* ═══════════════════════════════════════════
    PLAYER STATE & CARD BUILD
 ═══════════════════════════════════════════ */
