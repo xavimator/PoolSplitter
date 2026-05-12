@@ -124,11 +124,25 @@
   .btn-copy:hover { background: rgba(59,130,246,0.22); color: var(--white); }
   .btn-copy.copied { color: var(--green); border-color: rgba(52,211,153,0.4); }
 
-  .session-hint {
-    font-size: 0.75rem;
-    color: var(--silver-dark);
-    margin-left: auto;
+  .mode-toggle {
+    display: flex; gap: 0; border-radius: 4px; overflow: hidden;
+    border: 1px solid rgba(59,130,246,0.25); flex-shrink: 0;
   }
+  .mode-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 0.3rem 0.7rem; border: none; cursor: pointer;
+    transition: all 0.18s; background: transparent; color: var(--silver-dark);
+  }
+  .mode-btn.active-live  { background: rgba(59,130,246,0.25); color: var(--cyan); }
+  .mode-btn.active-local { background: rgba(251,191,36,0.18); color: var(--amber); }
+  .mode-btn:hover:not(.active-live):not(.active-local) { background: rgba(255,255,255,0.05); color: var(--silver); }
+
+  .session-hint {
+    font-size: 0.75rem; color: var(--silver-dark); margin-left: auto;
+  }
+
+
 
   /* ── CARD ── */
   .card {
@@ -530,9 +544,13 @@
   <div class="session-bar">
     <div class="live-dot" id="liveDot"></div>
     <span class="conn-label" id="connLabel">Conectando…</span>
+    <div class="mode-toggle">
+      <button class="mode-btn" id="btnLive"  onclick="setMode('live')">En directo</button>
+      <button class="mode-btn" id="btnLocal" onclick="setMode('local')">Solo local</button>
+    </div>
     <div class="session-id-box" id="sessionIdBox">—</div>
     <button class="btn-copy" id="btnCopy" onclick="copyLink()">Copiar enlace</button>
-    <span class="session-hint">Comparte el enlace con los jugadores</span>
+    <span class="session-hint" id="sessionHint">Comparte el enlace con los jugadores</span>
   </div>
 
   <!-- SUMMARY BY PLAYER (first) -->
@@ -596,7 +614,7 @@
 <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 <script>
 /* ═══════════════════════════════════════════
-   SESSION SETUP
+   SESSION & MODE SETUP
 ═══════════════════════════════════════════ */
 let sessionId = location.hash.slice(1).replace(/[^a-zA-Z0-9]/g, '');
 if (!sessionId) {
@@ -605,33 +623,53 @@ if (!sessionId) {
 }
 document.getElementById('sessionIdBox').textContent = sessionId;
 
+const isLocal = localStorage.getItem('ps-mode') === 'local';
+
+function setMode(mode) {
+  localStorage.setItem('ps-mode', mode);
+  location.reload();
+}
+
+// Apply mode UI
+document.getElementById('btnLive').className  = 'mode-btn' + (!isLocal ? ' active-live'  : '');
+document.getElementById('btnLocal').className = 'mode-btn' + ( isLocal ? ' active-local' : '');
+if (isLocal) {
+  document.getElementById('sessionIdBox').style.display = 'none';
+  document.getElementById('btnCopy').style.display      = 'none';
+  document.getElementById('sessionHint').style.display  = 'none';
+  document.getElementById('connLabel').textContent      = 'Solo local';
+  document.getElementById('liveDot').className          = 'live-dot off';
+}
+
 /* ═══════════════════════════════════════════
    GUN SETUP
 ═══════════════════════════════════════════ */
-const gun = Gun({
-  peers: [
-    'https://gun.eco/gun',
-    'wss://gun-us.herokuapp.com/gun',
-    'https://gundb-relay-mlmbl.ondigitalocean.app/gun'
-  ],
-  localStorage: true
-});
+const gun = isLocal
+  ? Gun({ localStorage: true })   // sin peers → nunca sincroniza
+  : Gun({
+      peers: [
+        'https://gun.eco/gun',
+        'wss://gun-us.herokuapp.com/gun',
+        'https://gundb-relay-mlmbl.ondigitalocean.app/gun'
+      ],
+      localStorage: true
+    });
 
 const root       = gun.get('billar-rc1').get(sessionId);
 const tablesRef  = root.get('tables');
 const playersRef = root.get('players');
 
-// Connection status
+// Connection status (solo en modo live)
 let peerCount = 0;
-gun.on('hi',  () => { peerCount++; setStatus(true); });
-gun.on('bye', () => { peerCount = Math.max(0, peerCount - 1); if (!peerCount) setStatus(false); });
-setTimeout(() => { if (!peerCount) setStatus(false); }, 5000);
+if (!isLocal) {
+  gun.on('hi',  () => { peerCount++; setStatus(true); });
+  gun.on('bye', () => { peerCount = Math.max(0, peerCount - 1); if (!peerCount) setStatus(false); });
+  setTimeout(() => { if (!peerCount) setStatus(false); }, 5000);
+}
 
 function setStatus(online) {
-  const dot   = document.getElementById('liveDot');
-  const label = document.getElementById('connLabel');
-  dot.className     = 'live-dot ' + (online ? 'on' : 'off');
-  label.textContent = online ? 'En directo' : 'Solo local (sin sync)';
+  document.getElementById('liveDot').className          = 'live-dot ' + (online ? 'on' : 'off');
+  document.getElementById('connLabel').textContent      = online ? 'En directo' : 'Solo local (sin sync)';
 }
 
 /* ═══════════════════════════════════════════
