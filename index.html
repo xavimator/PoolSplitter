@@ -434,6 +434,66 @@
     grid-column: 1/-1;
   }
 
+  /* ── PLAYER CARDS ── */
+  #playerCards { display: flex; flex-direction: column; gap: 0.55rem; }
+
+  .player-card {
+    background: var(--felt-mid);
+    border: 1px solid rgba(59,130,246,0.14);
+    border-radius: 5px;
+    padding: 0.7rem 0.9rem;
+    transition: border-color 0.2s;
+  }
+  .player-card:hover { border-color: rgba(59,130,246,0.3); }
+  .player-card.flash-row { animation: flashUpdate 0.5s ease; }
+
+  .player-header {
+    display: flex; align-items: center; gap: 0.55rem;
+    margin-bottom: 0.45rem;
+  }
+  .pnum {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+    font-size: 1rem; color: rgba(59,130,246,0.32);
+    width: 20px; text-align: center; flex-shrink: 0;
+  }
+  .player-header input[type="text"] {
+    flex: 1; background: var(--navy);
+    border-color: rgba(59,130,246,0.2);
+    padding: 0.35rem 0.6rem;
+    font-family: 'Barlow', sans-serif; font-size: 0.9rem;
+  }
+  .player-total {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;
+    color: var(--silver-dark); min-width: 68px; text-align: right; flex-shrink: 0;
+  }
+  .player-total.has-value { color: var(--cyan); font-size: 1rem; font-weight: 500; }
+
+  .pmrows { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.38rem; }
+  .pmrow  { display: flex; gap: 0.4rem; align-items: center; }
+  .pmrow select {
+    background: var(--navy); border-color: rgba(59,130,246,0.14);
+    padding: 0.3rem 0.5rem; font-size: 0.82rem;
+  }
+  .pmrow select:first-child { flex: 1; }
+  .pmrow select:nth-child(2) { width: 98px; flex-shrink: 0; }
+
+  .btn-remove-row {
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 3px; color: #f87171; font-size: 1rem;
+    width: 27px; height: 27px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.18s; flex-shrink: 0; line-height: 1;
+  }
+  .btn-remove-row:hover { background: rgba(239,68,68,0.22); color: var(--white); }
+
+  .btn-add-mesa-row {
+    background: rgba(59,130,246,0.06); border: 1px dashed rgba(59,130,246,0.24);
+    border-radius: 3px; color: var(--blue-b);
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.8rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 0.26rem 0.65rem; cursor: pointer; transition: all 0.18s; width: 100%;
+  }
+  .btn-add-mesa-row:hover { background: rgba(59,130,246,0.14); color: var(--white); }
+
   /* ── ACTIONS ── */
   .actions { display:flex; gap:0.7rem; flex-wrap:wrap; justify-content:flex-end; }
   button.btn-primary, button.btn-ghost {
@@ -498,19 +558,7 @@
   <!-- PLAYERS -->
   <div class="card">
     <div class="card-title"><div class="dot"></div>Jugadores</div>
-    <table class="players-table">
-      <thead>
-        <tr>
-          <th style="width:24px"></th>
-          <th>Nombre</th>
-          <th>Mesa</th>
-          <th>Min.</th>
-          <th class="center">% de su mesa</th>
-          <th class="right">A pagar</th>
-        </tr>
-      </thead>
-      <tbody id="playerRows"></tbody>
-    </table>
+    <div id="playerCards"></div>
   </div>
 
   <!-- TOTALS -->
@@ -596,24 +644,27 @@ let suppressSync = false; // prevent echo loops
 /* ═══════════════════════════════════════════
    PLAYER ROWS (built once)
 ═══════════════════════════════════════════ */
-const tbody = document.getElementById('playerRows');
+/* ═══════════════════════════════════════════
+   PLAYER STATE & CARD BUILD
+═══════════════════════════════════════════ */
+let playerRows = {}; // "p1"…"p10" → [{mesa, mins}, ...]
+
+const playerCardsEl = document.getElementById('playerCards');
 for (let i = 1; i <= NUM_PLAYERS; i++) {
-  const tr = document.createElement('tr');
-  tr.id = `prow${i}`;
-  tr.innerHTML = `
-    <td class="player-num">${i}</td>
-    <td><input type="text"   id="pname${i}" placeholder="Jugador ${i}"
-               oninput="onPlayerInput(${i})"></td>
-    <td><select              id="pmesa${i}" onchange="onPlayerInput(${i})">
-          <option value="">— Mesa —</option></select></td>
-    <td><select id="pmins${i}" onchange="onPlayerInput(${i})">
-          ${Array.from({length:21},(_,k)=>k*15).map(m=>`<option value="${m}"${m===0?' selected':''}>
-            ${m===0?'— min —':m+' min'}</option>`).join('')}
-        </select></td>
-    <td class="pct-cell"  id="ppct${i}">—</td>
-    <td class="result-cell" id="pres${i}"><span class="result-empty">—</span></td>
+  const card = document.createElement('div');
+  card.className = 'player-card';
+  card.id = `pcard${i}`;
+  card.innerHTML = `
+    <div class="player-header">
+      <span class="pnum">${i}</span>
+      <input type="text" id="pname${i}" placeholder="Jugador ${i}" oninput="onPlayerChange(${i})">
+      <span class="player-total" id="ptotal${i}">—</span>
+    </div>
+    <div class="pmrows" id="pmrows${i}"></div>
+    <button class="btn-add-mesa-row" onclick="addMesaRow(${i})">+ añadir mesa</button>
   `;
-  tbody.appendChild(tr);
+  playerCardsEl.appendChild(card);
+  playerRows[`p${i}`] = [];
 }
 
 /* ═══════════════════════════════════════════
@@ -625,45 +676,273 @@ for (let i = 1; i <= NUM_PLAYERS; i++) {
     if (!data) return;
     playersData[key] = data;
     suppressSync = true;
-    updatePlayerUI(i, data);
+    renderPlayerCard(i, data);
     suppressSync = false;
     recalculate();
   });
 }
 
-function updatePlayerUI(i, data) {
+function renderPlayerCard(i, data) {
   const nameEl = document.getElementById(`pname${i}`);
-  const mesaEl = document.getElementById(`pmesa${i}`);
-  const minsEl = document.getElementById(`pmins${i}`);
-  const row    = document.getElementById(`prow${i}`);
-
   if (document.activeElement !== nameEl) nameEl.value = data.name || '';
-  if (document.activeElement !== mesaEl) {
-    mesaEl.value = data.mesa || '';
-    mesaEl.className = data.mesa ? 'selected' : '';
-  }
-  if (document.activeElement !== minsEl) minsEl.value = data.mins > 0 ? data.mins : '0';
 
-  // Flash
-  row.classList.remove('flash-row');
-  void row.offsetWidth;
-  row.classList.add('flash-row');
+  let rows = [];
+  try { rows = JSON.parse(data.rowsJson || '[]'); } catch(e) {}
+  // backwards-compat: old single-mesa format
+  if (!data.rowsJson && data.mesa) rows = [{ mesa: data.mesa, mins: data.mins || 0 }];
+
+  playerRows[`p${i}`] = rows;
+  rebuildMesaRows(i, rows);
+
+  const card = document.getElementById(`pcard${i}`);
+  card.classList.remove('flash-row');
+  void card.offsetWidth;
+  card.classList.add('flash-row');
 }
 
-function onPlayerInput(i) {
-  if (suppressSync) return;
+function rebuildMesaRows(i, rows) {
+  const container = document.getElementById(`pmrows${i}`);
+  if (!container) return;
+  if (container.contains(document.activeElement)) return; // don't disrupt focus
+  container.innerHTML = '';
+  rows.forEach((row, idx) => container.appendChild(buildMesaRowEl(i, idx, row.mesa||'', row.mins||0)));
+}
+
+function buildMesaRowEl(i, idx, mesaVal, minsVal) {
+  const div = document.createElement('div');
+  div.className = 'pmrow';
+  div.id = `pmrow${i}-${idx}`;
+
+  const activeKeys = Object.entries(tablesData)
+    .filter(([,d]) => d && !d._del)
+    .sort(([,a],[,b]) => (a.order||0)-(b.order||0));
+
+  const mesaOpts = `<option value="">— Mesa —</option>` +
+    activeKeys.map(([key,d]) =>
+      `<option value="${key}"${key===mesaVal?' selected':''}>${d.name||key}</option>`
+    ).join('');
+
+  const minsOpts_ = Array.from({length:21},(_,k)=>k*15)
+    .map(m=>`<option value="${m}"${m==minsVal?' selected':''}>${m===0?'— min —':m+' min'}</option>`)
+    .join('');
+
+  div.innerHTML = `
+    <select id="pmesa${i}-${idx}" onchange="onPlayerChange(${i})">${mesaOpts}</select>
+    <select id="pmins${i}-${idx}" onchange="onPlayerChange(${i})">${minsOpts_}</select>
+    <button class="btn-remove-row" onclick="removeMesaRow(${i},${idx})">×</button>
+  `;
+  return div;
+}
+
+function addMesaRow(i) {
   const key  = `p${i}`;
-  const data = {
-    name: document.getElementById(`pname${i}`).value,
-    mesa: document.getElementById(`pmesa${i}`).value,
-    mins: parseFloat(document.getElementById(`pmins${i}`).value) || 0
-  };
-  playersRef.get(key).put(data);
+  const rows = [...(playerRows[key]||[]), { mesa:'', mins:0 }];
+  playerRows[key] = rows;
+  document.getElementById(`pmrows${i}`).appendChild(buildMesaRowEl(i, rows.length-1, '', 0));
+  syncPlayer(i);
+}
+
+function removeMesaRow(i, idx) {
+  const key  = `p${i}`;
+  const rows = [...(playerRows[key]||[])];
+  rows.splice(idx, 1);
+  playerRows[key] = rows;
+  rebuildMesaRows(i, rows);
+  syncPlayer(i);
   recalculate();
 }
 
+function onPlayerChange(i) {
+  if (suppressSync) return;
+  readPlayerRows(i);
+  syncPlayer(i);
+  recalculate();
+}
+
+function readPlayerRows(i) {
+  const container = document.getElementById(`pmrows${i}`);
+  if (!container) return;
+  const rows = [];
+  container.querySelectorAll('.pmrow').forEach((el, idx) => {
+    const mesaEl = document.getElementById(`pmesa${i}-${idx}`);
+    const minsEl = document.getElementById(`pmins${i}-${idx}`);
+    if (mesaEl && minsEl) rows.push({ mesa: mesaEl.value, mins: parseFloat(minsEl.value)||0 });
+  });
+  playerRows[`p${i}`] = rows;
+}
+
+function syncPlayer(i) {
+  if (suppressSync) return;
+  playersRef.get(`p${i}`).put({
+    name: document.getElementById(`pname${i}`)?.value || '',
+    rowsJson: JSON.stringify(playerRows[`p${i}`]||[])
+  });
+}
+
 /* ═══════════════════════════════════════════
-   GUN → TABLES LISTENER
+   MESA SELECTORS — refresh all player dropdowns
+═══════════════════════════════════════════ */
+function updateMesaSelectors() {
+  const activeKeys = Object.entries(tablesData)
+    .filter(([,d]) => d && !d._del)
+    .sort(([,a],[,b]) => (a.order||0)-(b.order||0));
+
+  for (let i = 1; i <= NUM_PLAYERS; i++) {
+    const container = document.getElementById(`pmrows${i}`);
+    if (!container) continue;
+    container.querySelectorAll('select[id^="pmesa"]').forEach(sel => {
+      if (document.activeElement === sel) return;
+      const cur = sel.value;
+      sel.innerHTML = `<option value="">— Mesa —</option>` +
+        activeKeys.map(([key,d]) =>
+          `<option value="${key}"${key===cur?' selected':''}>${d.name||key}</option>`
+        ).join('');
+      sel.value = cur;
+    });
+  }
+}
+
+/* ═══════════════════════════════════════════
+   CALCULATION
+   Cada mesa se reparte SOLO entre sus jugadores.
+═══════════════════════════════════════════ */
+function recalculate() {
+  // 1. Table costs
+  const tableCost = {};
+  let costoTotal = 0, mesasActivas = 0;
+  Object.entries(tablesData).forEach(([key,d]) => {
+    if (!d || d._del) return;
+    const cost = ((d.mins||0)/60)*(d.ph||0);
+    tableCost[key] = cost;
+    if (cost > 0) { costoTotal += cost; mesasActivas++; }
+  });
+
+  // 2. Sum player-mins per table
+  const tablePlayerMins = {};
+  for (let i = 1; i <= NUM_PLAYERS; i++) {
+    (playerRows[`p${i}`]||[]).forEach(row => {
+      if (!row.mesa || row.mins<=0) return;
+      tablePlayerMins[row.mesa] = (tablePlayerMins[row.mesa]||0) + row.mins;
+    });
+  }
+
+  // 3. Compute each player's cost across all their mesa-rows
+  const playerPago     = {};
+  const playerDetalles = {};
+  let totalJugados = 0, totalCobrado = 0;
+
+  for (let i = 1; i <= NUM_PLAYERS; i++) {
+    let playerTotal = 0;
+    const detalles  = [];
+    (playerRows[`p${i}`]||[]).forEach(row => {
+      if (!row.mesa || row.mins<=0) return;
+      totalJugados += row.mins;
+      const mc  = tableCost[row.mesa]    || 0;
+      const mtm = tablePlayerMins[row.mesa] || 0;
+      if (mc > 0 && mtm > 0) {
+        const pago = (row.mins / mtm) * mc;
+        playerTotal += pago;
+        detalles.push({ mesaNombre: tablesData[row.mesa]?.name||row.mesa, mins: row.mins, pago });
+      } else if (mc === 0) {
+        detalles.push({ mesaNombre: tablesData[row.mesa]?.name||row.mesa, mins: row.mins, pago: -1 });
+      }
+    });
+    playerPago[i]     = playerTotal;
+    playerDetalles[i] = detalles;
+    totalCobrado     += playerTotal;
+  }
+
+  // 4. Render totals on each player card
+  for (let i = 1; i <= NUM_PLAYERS; i++) {
+    const totalEl = document.getElementById(`ptotal${i}`);
+    if (!totalEl) continue;
+    const total = playerPago[i] || 0;
+    if (total > 0) {
+      totalEl.textContent = `€${total.toFixed(2)}`;
+      totalEl.className   = 'player-total has-value';
+    } else {
+      totalEl.textContent = '—';
+      totalEl.className   = 'player-total';
+    }
+  }
+
+  // 5. Summary by name
+  const byName = {};
+  for (let i = 1; i <= NUM_PLAYERS; i++) {
+    const name = document.getElementById(`pname${i}`)?.value.trim();
+    if (!name) continue;
+    const detalles = (playerDetalles[i]||[]).filter(d=>d.pago>0);
+    if (!detalles.length) continue;
+    if (!byName[name]) byName[name] = { total:0, detalles:[] };
+    byName[name].total += playerPago[i]||0;
+    detalles.forEach(d => byName[name].detalles.push(`${d.mesaNombre}: ${d.mins} min`));
+  }
+
+  const grid  = document.getElementById('summaryGrid');
+  const names = Object.keys(byName);
+  grid.innerHTML = names.length === 0
+    ? '<div class="summary-empty">Introduce jugadores y mesas para ver el resumen</div>'
+    : names.sort().map(name => {
+        const { total, detalles } = byName[name];
+        return `<div class="summary-player">
+          <div class="summary-name">${name}</div>
+          <div class="summary-amount">€${total.toFixed(2)}</div>
+          <div class="summary-detail">${detalles.join('<br>')}</div>
+        </div>`;
+      }).join('');
+
+  // 6. Totals bar
+  const tC=document.getElementById('totCosto'), tCS=document.getElementById('totCostoSub');
+  if (costoTotal>0){tC.textContent=`€${costoTotal.toFixed(2)}`;tCS.textContent=`${mesasActivas} mesa${mesasActivas!==1?'s':''} activas`;}
+  else{tC.textContent='—';tCS.textContent='';}
+
+  document.getElementById('totMesas').textContent    = Object.values(tablesData).filter(d=>d&&!d._del).length;
+  document.getElementById('totMesasSub').textContent = mesasActivas>0?`${mesasActivas} con precio`:'ninguna con precio';
+
+  const tJ=document.getElementById('totJugados'),tD=document.getElementById('totDiff');
+  tJ.textContent=`${totalJugados} min`;tJ.className='total-value ok';tD.textContent='';
+
+  const tCob=document.getElementById('totCobrado'),tR=document.getElementById('totRestante');
+  if (totalCobrado>0){
+    tCob.textContent=`€${totalCobrado.toFixed(2)}`;
+    const r=costoTotal-totalCobrado;
+    tR.textContent=r>0.005?`Faltan €${r.toFixed(2)}`:(r<-0.005?`⚠ exceso €${Math.abs(r).toFixed(2)}`:'✓ cubierto al 100%');
+  }else{tCob.textContent='—';tR.textContent='';}
+}
+
+/* ═══════════════════════════════════════════
+   COPY LINK
+═══════════════════════════════════════════ */
+function copyLink() {
+  const url = location.href;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('btnCopy');
+    btn.textContent='✓ Copiado'; btn.className='btn-copy copied';
+    setTimeout(()=>{btn.textContent='Copiar enlace';btn.className='btn-copy';},2000);
+  }).catch(()=>{ prompt('Copia este enlace:', url); });
+}
+
+/* ═══════════════════════════════════════════
+   CLEAR ALL
+═══════════════════════════════════════════ */
+function clearAll() {
+  if (!confirm('¿Seguro que quieres limpiar toda la sesión?')) return;
+  Object.keys(tablesData).forEach(key => tablesRef.get(key).put({ _del:true }));
+  tablesData = {};
+  document.getElementById('tablesList').innerHTML = '';
+  for (let i = 1; i <= NUM_PLAYERS; i++) {
+    playerRows[`p${i}`] = [];
+    playersRef.get(`p${i}`).put({ name:'', rowsJson:'[]' });
+    const nameEl = document.getElementById(`pname${i}`);
+    if (nameEl) nameEl.value = '';
+    const cont = document.getElementById(`pmrows${i}`);
+    if (cont) cont.innerHTML = '';
+    const tot = document.getElementById(`ptotal${i}`);
+    if (tot) { tot.textContent='—'; tot.className='player-total'; }
+  }
+  updateMesaSelectors();
+  recalculate();
+}
 ═══════════════════════════════════════════ */
 tablesRef.map().on((data, key) => {
   if (!data || data._del) {
@@ -769,213 +1048,6 @@ function removeTable(key) {
   recalculate();
 }
 
-/* ═══════════════════════════════════════════
-   MESA SELECTORS
-═══════════════════════════════════════════ */
-function updateMesaSelectors() {
-  const activeKeys = Object.entries(tablesData)
-    .filter(([,d]) => d && !d._del)
-    .sort(([,a],[,b]) => (a.order||0) - (b.order||0));
-
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    const sel = document.getElementById(`pmesa${i}`);
-    if (!sel || document.activeElement === sel) continue;
-    const current = sel.value;
-    sel.innerHTML = '<option value="">— Mesa —</option>';
-    activeKeys.forEach(([key, data]) => {
-      const opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = data.name || key;
-      sel.appendChild(opt);
-    });
-    sel.value = current;
-    sel.className = sel.value ? 'selected' : '';
-  }
-}
-
-/* ═══════════════════════════════════════════
-   CALCULATION
-   Cada mesa se reparte SOLO entre sus jugadores,
-   en proporción a los minutos de cada uno.
-═══════════════════════════════════════════ */
-function recalculate() {
-
-  // 1. Coste por mesa
-  const tableCost = {}; // tableKey → €
-  let costoTotal   = 0;
-  let mesasActivas = 0;
-  Object.entries(tablesData).forEach(([key, d]) => {
-    if (!d || d._del) return;
-    const cost = ((d.mins || 0) / 60) * (d.ph || 0);
-    tableCost[key] = cost;
-    if (cost > 0) { costoTotal += cost; mesasActivas++; }
-  });
-
-  // 2. Agrupar jugadores por mesa y sumar sus minutos
-  const tablePlayerMins = {}; // tableKey → total mins de esa mesa
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    const mesaKey = document.getElementById(`pmesa${i}`).value;
-    const mins    = parseFloat(document.getElementById(`pmins${i}`).value) || 0;
-    if (!mesaKey || mins <= 0) continue;
-    tablePlayerMins[mesaKey] = (tablePlayerMins[mesaKey] || 0) + mins;
-  }
-
-  // 3. Calcular pago de cada jugador dentro de su mesa
-  const playerPago = {}; // index → €
-  let totalJugados = 0;
-  let totalCobrado = 0;
-
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    const mesaKey = document.getElementById(`pmesa${i}`).value;
-    const mins    = parseFloat(document.getElementById(`pmins${i}`).value) || 0;
-    if (mins > 0) totalJugados += mins;
-    if (!mesaKey || mins <= 0) { playerPago[i] = null; continue; }
-
-    const mesaTotalMins = tablePlayerMins[mesaKey] || 0;
-    const mesaCost      = tableCost[mesaKey] || 0;
-
-    if (mesaCost > 0 && mesaTotalMins > 0) {
-      playerPago[i] = (mins / mesaTotalMins) * mesaCost;
-      totalCobrado += playerPago[i];
-    } else {
-      playerPago[i] = mesaCost === 0 ? -1 : null; // -1 = mesa sin precio
-    }
-  }
-
-  // 4. Render filas jugadores — agrupadas por mesa
-  // Primero limpiamos las filas de separador de mesa previas
-  document.querySelectorAll('.mesa-header-row').forEach(r => r.remove());
-
-  // Recorremos jugadores, insertando cabecera de mesa al cambiar
-  let lastMesaKey = null;
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    const mins    = parseFloat(document.getElementById(`pmins${i}`).value) || 0;
-    const mesaKey = document.getElementById(`pmesa${i}`).value;
-    const pctCell = document.getElementById(`ppct${i}`);
-    const resCell = document.getElementById(`pres${i}`);
-    const pago    = playerPago[i];
-
-    if (mins <= 0 || !mesaKey) {
-      pctCell.innerHTML = '—';
-      resCell.innerHTML = '<span class="result-empty">—</span>';
-      continue;
-    }
-
-    // Cabecera de grupo si cambia la mesa (primera aparición de esa mesa)
-    if (mesaKey !== lastMesaKey) {
-      const mesaNombre  = tablesData[mesaKey]?.name || mesaKey;
-      const mesaCostStr = (tableCost[mesaKey] || 0) > 0 ? ` · €${(tableCost[mesaKey]).toFixed(2)}` : '';
-      const mesaMins    = tablePlayerMins[mesaKey] || 0;
-      const row = document.getElementById(`prow${i}`);
-      const sep = document.createElement('tr');
-      sep.className = 'mesa-header-row';
-      sep.innerHTML = `<td colspan="6">
-        <span class="mesa-tag">${mesaNombre}</span>
-        <span class="mesa-tag-sub">${mesaMins} min entre sus jugadores${mesaCostStr}</span>
-      </td>`;
-      row.parentNode.insertBefore(sep, row);
-      lastMesaKey = mesaKey;
-    }
-
-    const mesaTotalMins = tablePlayerMins[mesaKey] || 1;
-    const pct = (mins / mesaTotalMins) * 100;
-    pctCell.innerHTML = `${pct.toFixed(1)}%<div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>`;
-
-    if (pago > 0) {
-      resCell.innerHTML = `<div class="result-amount">€${pago.toFixed(2)}</div><div class="result-mins">${mins} min</div>`;
-    } else if (pago === -1) {
-      resCell.innerHTML = '<span class="result-empty">mesa sin precio</span>';
-    } else {
-      resCell.innerHTML = '<span class="result-empty">sin precio</span>';
-    }
-  }
-
-  // 4b. Render resumen por nombre
-  const byName = {}; // nombre → { total, detalles[] }
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    const name    = document.getElementById(`pname${i}`).value.trim();
-    const mins    = parseFloat(document.getElementById(`pmins${i}`).value) || 0;
-    const mesaKey = document.getElementById(`pmesa${i}`).value;
-    const pago    = playerPago[i];
-    if (!name || mins <= 0 || !mesaKey || !(pago > 0)) continue;
-    if (!byName[name]) byName[name] = { total: 0, detalles: [] };
-    byName[name].total += pago;
-    byName[name].detalles.push(`${tablesData[mesaKey]?.name || mesaKey}: ${mins} min`);
-  }
-
-  const grid = document.getElementById('summaryGrid');
-  const names = Object.keys(byName);
-  if (names.length === 0) {
-    grid.innerHTML = '<div class="summary-empty">Introduce jugadores y mesas para ver el resumen</div>';
-  } else {
-    grid.innerHTML = names.sort().map(name => {
-      const { total, detalles } = byName[name];
-      return `<div class="summary-player">
-        <div class="summary-name">${name}</div>
-        <div class="summary-amount">€${total.toFixed(2)}</div>
-        <div class="summary-detail">${detalles.join('<br>')}</div>
-      </div>`;
-    }).join('');
-  }
-
-
-  const tC = document.getElementById('totCosto'), tCS = document.getElementById('totCostoSub');
-  if (costoTotal > 0) {
-    tC.textContent  = `€${costoTotal.toFixed(2)}`;
-    tCS.textContent = `${mesasActivas} mesa${mesasActivas!==1?'s':''} activas`;
-  } else { tC.textContent = '—'; tCS.textContent = ''; }
-
-  document.getElementById('totMesas').textContent    = Object.values(tablesData).filter(d=>d&&!d._del).length;
-  document.getElementById('totMesasSub').textContent = mesasActivas > 0 ? `${mesasActivas} con precio` : 'ninguna con precio';
-
-  const tJ = document.getElementById('totJugados'), tD = document.getElementById('totDiff');
-  tJ.textContent = `${totalJugados} min`;
-  tJ.className   = 'total-value ok';
-  tD.textContent = '';
-
-  const tCob = document.getElementById('totCobrado'), tR = document.getElementById('totRestante');
-  if (totalCobrado > 0) {
-    tCob.textContent = `€${totalCobrado.toFixed(2)}`;
-    const r = costoTotal - totalCobrado;
-    tR.textContent = r > 0.005 ? `Faltan €${r.toFixed(2)} por asignar` : r < -0.005 ? `⚠ exceso €${Math.abs(r).toFixed(2)}` : '✓ cubierto al 100%';
-  } else { tCob.textContent = '—'; tR.textContent = ''; }
-}
-
-/* ═══════════════════════════════════════════
-   COPY LINK
-═══════════════════════════════════════════ */
-function copyLink() {
-  const url = location.href;
-  navigator.clipboard.writeText(url).then(() => {
-    const btn = document.getElementById('btnCopy');
-    btn.textContent = '✓ Copiado';
-    btn.className = 'btn-copy copied';
-    setTimeout(() => { btn.textContent = 'Copiar enlace'; btn.className = 'btn-copy'; }, 2000);
-  }).catch(() => { prompt('Copia este enlace:', url); });
-}
-
-/* ═══════════════════════════════════════════
-   CLEAR ALL
-═══════════════════════════════════════════ */
-function clearAll() {
-  if (!confirm('¿Seguro que quieres limpiar toda la sesión?')) return;
-  // Clear tables
-  Object.keys(tablesData).forEach(key => tablesRef.get(key).put({ _del: true }));
-  tablesData = {};
-  document.getElementById('tablesList').innerHTML = '';
-  // Clear players
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    const data = { name: '', mesa: '', mins: 0 };
-    playersRef.get(`p${i}`).put(data);
-    suppressSync = true;
-    document.getElementById(`pname${i}`).value = '';
-    document.getElementById(`pmesa${i}`).value = '';
-    document.getElementById(`pmins${i}`).value = '0';
-    suppressSync = false;
-  }
-  updateMesaSelectors();
-  recalculate();
-}
 </script>
 </body>
 </html>
