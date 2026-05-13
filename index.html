@@ -962,26 +962,6 @@ function copyLink() {
 }
 
 /* ═══════════════════════════════════════════
-   CLEAR ALL
-═══════════════════════════════════════════ */
-function clearAll() {
-  if (!confirm('¿Seguro que quieres limpiar toda la sesión?')) return;
-  Object.keys(tablesData).forEach(key => tablesRef.get(key).put({ _del:true }));
-  tablesData = {};
-  document.getElementById('tablesList').innerHTML = '';
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    playerRows[`p${i}`] = [];
-    playersRef.get(`p${i}`).put({ name:'', rowsJson:'[]' });
-    const nameEl = document.getElementById(`pname${i}`);
-    if (nameEl) nameEl.value = '';
-    const cont = document.getElementById(`pmrows${i}`);
-    if (cont) cont.innerHTML = '';
-    const tot = document.getElementById(`ptotal${i}`);
-    if (tot) { tot.textContent='—'; tot.className='player-total'; }
-  }
-  updateMesaSelectors();
-  recalculate();
-/* ═══════════════════════════════════════════
    LOCAL STORAGE HELPERS
 ═══════════════════════════════════════════ */
 function localSave() {
