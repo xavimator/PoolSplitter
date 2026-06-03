@@ -4,944 +4,788 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PoolSplitter — Partidas</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b1a35">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PoolSplitter">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 <style>
-  :root {
-    --navy:        #060d1a;
-    --felt:        #0b1a35;
-    --felt-mid:    #102245;
-    --blue:        #1d4ed8;
-    --blue-b:      #3b82f6;
-    --cyan:        #38bdf8;
-    --cyan-dim:    #7dd3fc;
-    --silver:      #e2e8f0;
-    --silver-dim:  #94a3b8;
-    --silver-dark: #475569;
-    --white:       #f8fafc;
-    --red:         #ef4444;
-    --green:       #34d399;
-    --amber:       #fbbf24;
-    --purple:      #a78bfa;
-    --shadow:      rgba(0,0,0,.65);
-  }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy:        #060d1a;
+  --felt:        #0b1a35;
+  --felt-mid:    #102245;
+  --blue:        #1d4ed8;
+  --blue-b:      #3b82f6;
+  --cyan:        #38bdf8;
+  --cyan-dim:    #7dd3fc;
+  --silver:      #e2e8f0;
+  --silver-dim:  #94a3b8;
+  --silver-dark: #475569;
+  --white:       #f8fafc;
+  --red:         #ef4444;
+  --green:       #34d399;
+  --amber:       #fbbf24;
+  --purple:      #a78bfa;
+  --shadow:      rgba(0,0,0,.65);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
-    background: var(--navy);
-    background-image:
-      radial-gradient(ellipse 90% 50% at 50% -5%, rgba(29,78,216,.2) 0%, transparent 65%),
-      repeating-linear-gradient(0deg,  transparent, transparent 47px, rgba(255,255,255,.012) 47px, rgba(255,255,255,.012) 48px),
-      repeating-linear-gradient(90deg, transparent, transparent 47px, rgba(255,255,255,.012) 47px, rgba(255,255,255,.012) 48px);
-    min-height: 100vh;
-    font-family: 'Barlow', sans-serif;
-    color: var(--silver);
-    padding: 2rem 1rem 5rem;
-  }
-  .container { max-width: 960px; margin: 0 auto; }
+body {
+  background-color: #060d1a;
+  background-image:
+    radial-gradient(ellipse 90% 50% at 50% -5%, rgba(29,78,216,.2) 0%, transparent 65%),
+    repeating-linear-gradient(0deg,  transparent, transparent 47px, rgba(255,255,255,.012) 47px, rgba(255,255,255,.012) 48px),
+    repeating-linear-gradient(90deg, transparent, transparent 47px, rgba(255,255,255,.012) 47px, rgba(255,255,255,.012) 48px);
+  min-height: 100vh;
+  font-family: 'Barlow', sans-serif;
+  color: var(--silver);
+  padding: 2rem 1rem 5rem;
+}
+.container { max-width: 960px; margin: 0 auto; }
 
-  /* HEADER */
-  header { text-align: center; margin-bottom: 2rem; }
-  .header-rule { display:flex;align-items:center;gap:1rem;justify-content:center;margin-bottom:.6rem; }
-  .header-rule span { width:70px;height:1px; }
-  .header-rule span:first-child { background:linear-gradient(90deg,transparent,var(--blue-b)); }
-  .header-rule span:last-child  { background:linear-gradient(90deg,var(--blue-b),transparent); }
-  .header-rule .ball { width:9px;height:9px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan); }
-  header h1 { font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(2.5rem,8vw,5rem);letter-spacing:.1em;color:var(--white);text-transform:uppercase;line-height:1;text-shadow:0 0 40px rgba(59,130,246,.4),0 4px 24px rgba(0,0,0,.7); }
-  header h1 span { color:var(--cyan); }
-  header .tagline { font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--silver-dim);letter-spacing:.2em;text-transform:uppercase;margin-top:.4rem; }
+/* HEADER */
+header { text-align: center; margin-bottom: 2rem; }
+.header-rule { display:flex;align-items:center;gap:1rem;justify-content:center;margin-bottom:.6rem; }
+.header-rule span { width:70px;height:1px; }
+.header-rule span:first-child { background:linear-gradient(90deg,transparent,var(--blue-b)); }
+.header-rule span:last-child  { background:linear-gradient(90deg,var(--blue-b),transparent); }
+.header-rule .ball { width:9px;height:9px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan); }
+header h1 { font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(2.5rem,8vw,5rem);letter-spacing:.1em;color:var(--white);text-transform:uppercase;line-height:1;text-shadow:0 0 40px rgba(59,130,246,.4),0 4px 24px rgba(0,0,0,.7); }
+header h1 span { color:var(--cyan); }
+header .tagline { font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--silver-dim);letter-spacing:.2em;text-transform:uppercase;margin-top:.4rem; }
 
-  /* SESSION BAR */
-  .session-bar { display:flex;align-items:center;gap:.75rem;background:var(--felt-mid);border:1px solid rgba(59,130,246,.2);border-radius:6px;padding:.7rem 1.1rem;margin-bottom:1.25rem;flex-wrap:wrap; }
-  .live-dot { width:8px;height:8px;border-radius:50%;background:var(--silver-dark);flex-shrink:0;transition:background .3s,box-shadow .3s; }
-  .live-dot.on  { background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite; }
-  .live-dot.off { background:var(--amber);box-shadow:0 0 6px var(--amber); }
-  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
-  .conn-label { font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--silver-dim);margin-right:.5rem; }
-  .mode-toggle { display:flex;gap:0;border-radius:4px;overflow:hidden;border:1px solid rgba(59,130,246,.25);flex-shrink:0; }
-  .mode-btn { font-family:'JetBrains Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;padding:.3rem .7rem;border:none;cursor:pointer;transition:all .18s;background:transparent;color:var(--silver-dark); }
-  .mode-btn.active-live  { background:rgba(59,130,246,.25);color:var(--cyan); }
-  .mode-btn.active-local { background:rgba(251,191,36,.18);color:var(--amber); }
-  .session-id-box { background:var(--navy);border:1px solid rgba(59,130,246,.25);border-radius:4px;padding:.3rem .75rem;font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--cyan);letter-spacing:.12em; }
-  .btn-copy { background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:4px;color:var(--blue-b);font-family:'Barlow Condensed',sans-serif;font-size:.88rem;letter-spacing:.1em;text-transform:uppercase;padding:.3rem .9rem;cursor:pointer;transition:all .2s; }
-  .btn-copy:hover { background:rgba(59,130,246,.22);color:var(--white); }
-  .btn-copy.copied { color:var(--green);border-color:rgba(52,211,153,.4); }
+/* SESSION BAR */
+.session-bar { display:flex;align-items:center;gap:.75rem;background:var(--felt-mid);border:1px solid rgba(59,130,246,.2);border-radius:6px;padding:.7rem 1.1rem;margin-bottom:1.25rem;flex-wrap:wrap; }
+.live-dot { width:8px;height:8px;border-radius:50%;background:var(--silver-dark);flex-shrink:0;transition:background .3s,box-shadow .3s; }
+.live-dot.on  { background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite; }
+.live-dot.off { background:var(--amber);box-shadow:0 0 6px var(--amber); }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
+.conn-label { font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--silver-dim);margin-right:.5rem; }
+.mode-toggle { display:flex;gap:0;border-radius:4px;overflow:hidden;border:1px solid rgba(59,130,246,.25);flex-shrink:0; }
+.mode-btn { font-family:'JetBrains Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;padding:.3rem .7rem;border:none;cursor:pointer;transition:all .18s;background:transparent;color:var(--silver-dark); }
+.mode-btn.active-live  { background:rgba(59,130,246,.25);color:var(--cyan); }
+.mode-btn.active-local { background:rgba(251,191,36,.18);color:var(--amber); }
+.mode-btn:hover:not(.active-live):not(.active-local) { background:rgba(255,255,255,.05);color:var(--silver); }
+.session-id-box { background:var(--navy);border:1px solid rgba(59,130,246,.25);border-radius:4px;padding:.3rem .75rem;font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--cyan);letter-spacing:.12em; }
+.btn-copy { background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:4px;color:var(--blue-b);font-family:'Barlow Condensed',sans-serif;font-size:.88rem;letter-spacing:.1em;text-transform:uppercase;padding:.3rem .9rem;cursor:pointer;transition:all .2s; }
+.btn-copy:hover { background:rgba(59,130,246,.22);color:var(--white); }
+.btn-copy.copied { color:var(--green);border-color:rgba(52,211,153,.4); }
+.nav-link { display:inline-flex;align-items:center;gap:.4rem;font-family:'Barlow Condensed',sans-serif;font-size:.9rem;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan-dim);padding:.35rem 1rem;border:1px solid rgba(56,189,248,.25);border-radius:4px;text-decoration:none;transition:all .2s; }
+.nav-link:hover { color:var(--white);border-color:var(--cyan); }
 
-  /* CARD */
-  .card { background:var(--felt);border:1px solid rgba(59,130,246,.18);border-radius:6px;padding:1.4rem 1.6rem;margin-bottom:1.25rem;box-shadow:0 10px 36px var(--shadow),inset 0 1px 0 rgba(255,255,255,.03);position:relative;overflow:hidden; }
-  .card::before { content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--blue-b),transparent);opacity:.5; }
-  .card-title { font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:.95rem;letter-spacing:.18em;color:var(--cyan);text-transform:uppercase;margin-bottom:1.1rem;display:flex;align-items:center;gap:.6rem; }
-  .card-title::after { content:'';flex:1;height:1px;background:rgba(59,130,246,.18); }
-  .card-title .dot { width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);flex-shrink:0; }
+/* DB STRIP */
+.db-strip { display:flex;align-items:center;gap:.6rem;padding:.5rem .9rem;background:var(--felt-mid);border:1px solid rgba(59,130,246,.14);border-radius:5px;margin-bottom:1.1rem;flex-wrap:wrap; }
+.db-dot { width:7px;height:7px;border-radius:50%;flex-shrink:0; }
+.db-dot.ok  { background:var(--green);box-shadow:0 0 6px var(--green); }
+.db-dot.err { background:var(--red);box-shadow:0 0 6px var(--red); }
+.db-dot.off { background:var(--silver-dark); }
+.db-label { font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--silver-dim); }
 
-  /* INPUTS */
-  input[type="text"], input[type="number"] {
-    background:var(--navy);border:1px solid rgba(59,130,246,.22);border-radius:4px;
-    color:var(--white);font-family:'JetBrains Mono',monospace;font-size:.88rem;
-    padding:.45rem .7rem;width:100%;outline:none;transition:border-color .2s,box-shadow .2s;
-  }
-  input:focus { border-color:var(--blue-b);box-shadow:0 0 0 2px rgba(59,130,246,.18); }
-  input::placeholder { color:var(--silver-dark); }
+/* CFG PANEL */
+.cfg-panel { background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.25);border-radius:5px;padding:1rem 1.2rem;margin-bottom:1.1rem; }
+.cfg-panel-title { font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.15em;text-transform:uppercase;color:var(--amber);margin-bottom:.8rem; }
+.cfg-grid { display:grid;grid-template-columns:1fr 1fr auto;gap:.6rem;align-items:end; }
+@media(max-width:600px){ .cfg-grid { grid-template-columns:1fr; } }
 
-  label { font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.13em;text-transform:uppercase;color:var(--silver-dim);display:block;margin-bottom:.28rem; }
+/* CARD */
+.card { background:var(--felt);border:1px solid rgba(59,130,246,.18);border-radius:6px;padding:1.4rem 1.6rem;margin-bottom:1.25rem;box-shadow:0 10px 36px var(--shadow),inset 0 1px 0 rgba(255,255,255,.03);position:relative;overflow:hidden; }
+.card::before { content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--blue-b),transparent);opacity:.5; }
+.card-title { font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:.95rem;letter-spacing:.18em;color:var(--cyan);text-transform:uppercase;margin-bottom:1.1rem;display:flex;align-items:center;gap:.6rem; }
+.card-title::after { content:'';flex:1;height:1px;background:rgba(59,130,246,.18); }
+.card-title .dot { width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);flex-shrink:0; }
 
-  /* BUTTONS */
-  .btn-primary { background:var(--blue);border:1px solid var(--blue-b);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.13em;font-size:.98rem;text-transform:uppercase;padding:.58rem 1.6rem;border-radius:4px;cursor:pointer;transition:all .2s;box-shadow:0 0 18px rgba(29,78,216,.38); }
-  .btn-primary:hover { background:var(--blue-b);transform:translateY(-1px); }
-  .btn-ghost { background:transparent;border:1px solid rgba(255,255,255,.11);color:var(--silver-dim);font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.13em;font-size:.98rem;text-transform:uppercase;padding:.58rem 1.6rem;border-radius:4px;cursor:pointer;transition:all .2s; }
-  .btn-ghost:hover { border-color:rgba(255,255,255,.28);color:var(--silver); }
-  .btn-remove { background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.22);border-radius:4px;color:#f87171;font-size:1rem;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;line-height:1;flex-shrink:0; }
-  .btn-remove:hover { background:rgba(239,68,68,.25);color:var(--white); }
+/* INPUTS */
+input[type="text"], input[type="number"] {
+  background:var(--navy);border:1px solid rgba(59,130,246,.22);border-radius:4px;
+  color:var(--white);font-family:'JetBrains Mono',monospace;font-size:.88rem;
+  padding:.45rem .7rem;width:100%;outline:none;transition:border-color .2s,box-shadow .2s;
+}
+input:focus { border-color:var(--blue-b);box-shadow:0 0 0 2px rgba(59,130,246,.18); }
+input::placeholder { color:var(--silver-dark); }
+label { font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.13em;text-transform:uppercase;color:var(--silver-dim);display:block;margin-bottom:.28rem; }
 
-  /* MATCH CARDS */
-  .matches-list { display:flex;flex-direction:column;gap:1rem; }
+/* BUTTONS */
+.btn-primary { background:var(--blue);border:1px solid var(--blue-b);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.13em;font-size:.98rem;text-transform:uppercase;padding:.58rem 1.6rem;border-radius:4px;cursor:pointer;transition:all .2s;box-shadow:0 0 18px rgba(29,78,216,.38); }
+.btn-primary:hover { background:var(--blue-b);transform:translateY(-1px); }
+.btn-ghost { background:transparent;border:1px solid rgba(255,255,255,.11);color:var(--silver-dim);font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.13em;font-size:.98rem;text-transform:uppercase;padding:.58rem 1.6rem;border-radius:4px;cursor:pointer;transition:all .2s; }
+.btn-ghost:hover { border-color:rgba(255,255,255,.28);color:var(--silver); }
+.btn-remove { background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.22);border-radius:4px;color:#f87171;font-size:1rem;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;line-height:1;flex-shrink:0; }
+.btn-remove:hover { background:rgba(239,68,68,.25);color:var(--white); }
+.btn-add-match { background:rgba(59,130,246,.07);border:1px dashed rgba(59,130,246,.32);border-radius:5px;padding:.6rem 1.2rem;color:var(--blue-b);font-family:'Barlow Condensed',sans-serif;font-size:.9rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;width:100%;margin-top:.8rem; }
+.btn-add-match:hover { background:rgba(59,130,246,.16);border-color:var(--blue-b);color:var(--white); }
 
-  .match-card {
-    background:var(--felt-mid);
-    border:1px solid rgba(59,130,246,.15);
-    border-radius:6px;
-    padding:1rem 1.1rem;
-    transition:border-color .2s;
-    animation:rowIn .25s ease;
-  }
-  .match-card.has-winner { border-color:rgba(52,211,153,.35); }
-  @keyframes rowIn { from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)} }
+/* MATCH CARDS */
+.matches-list { display:flex;flex-direction:column;gap:.9rem; }
+.match-card { background:var(--felt-mid);border:1px solid rgba(59,130,246,.15);border-radius:6px;padding:1rem 1.1rem;transition:border-color .2s;animation:rowIn .25s ease; }
+.match-card.has-winner { border-color:rgba(52,211,153,.35); }
+@keyframes rowIn { from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)} }
+.match-header { display:flex;align-items:center;gap:.7rem;margin-bottom:.85rem;flex-wrap:wrap; }
+.match-num { font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.2rem;color:rgba(59,130,246,.4);min-width:28px; }
+.match-header input[type="text"] { flex:1;min-width:120px;background:rgba(0,0,0,.2);border-color:rgba(59,130,246,.15);font-family:'Barlow',sans-serif;font-size:.9rem;padding:.35rem .55rem; }
 
-  .match-header {
-    display:flex;align-items:center;gap:.7rem;margin-bottom:.85rem;flex-wrap:wrap;
-  }
-  .match-num {
-    font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.2rem;
-    color:rgba(59,130,246,.4);min-width:28px;
-  }
-  .match-header input[type="text"] {
-    flex:1;min-width:120px;background:rgba(0,0,0,.2);border-color:rgba(59,130,246,.15);
-    font-family:'Barlow',sans-serif;font-size:.9rem;padding:.35rem .55rem;
-  }
+/* FORMAT TOGGLE */
+.format-toggle { display:flex;gap:0;border-radius:4px;overflow:hidden;border:1px solid rgba(59,130,246,.25);flex-shrink:0; }
+.fmt-btn { font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:.08em;padding:.32rem .65rem;border:none;cursor:pointer;background:transparent;color:var(--silver-dark);transition:all .18s; }
+.fmt-btn.active { background:rgba(59,130,246,.28);color:var(--cyan); }
+.fmt-btn:hover:not(.active) { background:rgba(255,255,255,.05);color:var(--silver); }
 
-  /* FORMAT TOGGLE */
-  .format-toggle { display:flex;gap:0;border-radius:4px;overflow:hidden;border:1px solid rgba(59,130,246,.25);flex-shrink:0; }
-  .fmt-btn { font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:.08em;padding:.32rem .65rem;border:none;cursor:pointer;background:transparent;color:var(--silver-dark);transition:all .18s; }
-  .fmt-btn.active { background:rgba(59,130,246,.28);color:var(--cyan); }
-  .fmt-btn:hover:not(.active) { background:rgba(255,255,255,.05);color:var(--silver); }
+/* TEAMS */
+.teams-grid { display:grid;grid-template-columns:1fr 36px 1fr;gap:.6rem;align-items:start; }
+.team-label { font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--silver-dark);margin-bottom:.35rem;text-align:center; }
+.team-inputs { display:flex;flex-direction:column;gap:.3rem; }
+.vs-col { display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.1rem;color:var(--silver-dark);padding-top:1.4rem; }
 
-  /* TEAMS GRID */
-  .teams-grid { display:grid;grid-template-columns:1fr 40px 1fr;gap:.6rem;align-items:start;margin-bottom:.85rem; }
-  .team-col { display:flex;flex-direction:column;gap:.35rem; }
-  .team-label {
-    font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:.78rem;
-    letter-spacing:.14em;text-transform:uppercase;padding:.25rem .5rem;
-    border-radius:3px;text-align:center;margin-bottom:.1rem;
-  }
-  .team-label.a { background:rgba(59,130,246,.18);color:var(--cyan-dim); }
-  .team-label.b { background:rgba(167,139,250,.18);color:var(--purple); }
-  .vs-col { display:flex;align-items:center;justify-content:center;padding-top:1.8rem; }
-  .vs-badge { font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1rem;color:var(--silver-dark);letter-spacing:.1em; }
+/* WINNER ROW */
+.winner-row { margin-top:.85rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap; }
+.winner-label { font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--silver-dark);flex-shrink:0; }
+.btn-win { font-family:'Barlow Condensed',sans-serif;font-size:.85rem;letter-spacing:.08em;text-transform:uppercase;padding:.3rem .8rem;border-radius:4px;cursor:pointer;transition:all .2s;border:1px solid rgba(59,130,246,.25);background:rgba(59,130,246,.08);color:var(--silver-dim); }
+.btn-win:hover { border-color:rgba(56,189,248,.4);color:var(--silver); }
+.btn-win.winner { background:rgba(52,211,153,.15);border-color:rgba(52,211,153,.5);color:var(--green);font-weight:700; }
+.winner-tag { font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--green);margin-left:.3rem; }
 
-  .player-input-row { display:flex;gap:.35rem;align-items:center; }
-  .player-input-row input { flex:1;background:rgba(0,0,0,.25);border-color:rgba(59,130,246,.12);font-family:'Barlow',sans-serif;font-size:.87rem;padding:.32rem .52rem; }
-  .player-input-row input:focus { background:var(--navy);border-color:var(--blue-b); }
+/* LEADERBOARD */
+.lb-empty { font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--silver-dark);padding:.5rem; }
+.stat-row { display:flex;align-items:center;gap:.75rem;padding:.5rem .6rem;border-radius:4px;transition:background .15s; }
+.stat-row:hover { background:rgba(59,130,246,.05); }
+.stat-pos { font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.1rem;width:26px;text-align:center;flex-shrink:0; }
+.stat-pos.gold   { color:#fbbf24; }
+.stat-pos.silver { color:#94a3b8; }
+.stat-pos.bronze { color:#b45309; }
+.stat-pos.other  { color:rgba(59,130,246,.35); }
+.stat-name { flex:1;font-size:.92rem;color:var(--silver); }
+.stat-bars { flex:2;display:flex;flex-direction:column;gap:3px; }
+.stat-bar-row { display:flex;align-items:center;gap:.4rem; }
+.stat-bar-label { font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--silver-dark);width:38px;text-align:right;flex-shrink:0; }
+.stat-bar-track { flex:1;height:4px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden; }
+.stat-bar-fill-win  { height:100%;background:linear-gradient(90deg,var(--blue-b),var(--cyan));border-radius:3px;transition:width .4s; }
+.stat-bar-fill-play { height:100%;background:rgba(148,163,184,.25);border-radius:3px;transition:width .4s; }
+.stat-nums { font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--cyan);min-width:70px;text-align:right;flex-shrink:0; }
+.stat-rate { font-size:.65rem;color:var(--silver-dark); }
 
-  .btn-add-player { background:rgba(59,130,246,.07);border:1px dashed rgba(59,130,246,.28);border-radius:3px;color:var(--blue-b);font-family:'Barlow Condensed',sans-serif;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;padding:.25rem .6rem;cursor:pointer;transition:all .18s;width:100%; }
-  .btn-add-player:hover { background:rgba(59,130,246,.16);color:var(--white); }
+/* HISTORY */
+.history-session { background:var(--felt-mid);border:1px solid rgba(59,130,246,.14);border-radius:5px;padding:.8rem 1rem;margin-bottom:.6rem;cursor:pointer;transition:border-color .2s; }
+.history-session:hover { border-color:rgba(59,130,246,.35); }
+.history-session-header { display:flex;align-items:center;gap:.75rem;flex-wrap:wrap; }
+.history-date { font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1rem;color:var(--cyan);letter-spacing:.06em; }
+.history-meta { font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--silver-dark);flex:1; }
+.history-top  { font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--green); }
+.history-del  { background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:3px;color:#f87171;font-size:.72rem;padding:.15rem .45rem;cursor:pointer;flex-shrink:0; }
+.history-matches { margin-top:.7rem;display:none;flex-direction:column;gap:.3rem;border-top:1px solid rgba(59,130,246,.1);padding-top:.6rem; }
+.history-matches.open { display:flex; }
+.history-match-row { font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--silver-dim);padding:.2rem .4rem;background:rgba(0,0,0,.15);border-radius:3px; }
+.history-match-row .winner-tag-sm { color:var(--green); }
 
-  /* WINNER BUTTONS */
-  .winner-row { display:flex;gap:.6rem;align-items:center;flex-wrap:wrap; }
-  .btn-winner { flex:1;min-width:120px;border-radius:4px;padding:.5rem 1rem;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;transition:all .2s;border:1px solid; }
-  .btn-winner-a { background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.3);color:var(--cyan-dim); }
-  .btn-winner-a:hover, .btn-winner-a.won { background:rgba(59,130,246,.35);border-color:var(--cyan);color:var(--white); }
-  .btn-winner-a.won { box-shadow:0 0 14px rgba(56,189,248,.35); }
-  .btn-winner-b { background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:var(--purple); }
-  .btn-winner-b:hover, .btn-winner-b.won { background:rgba(167,139,250,.35);border-color:var(--purple);color:var(--white); }
-  .btn-winner-b.won { box-shadow:0 0 14px rgba(167,139,250,.35); }
-  .btn-no-winner { background:transparent;border-color:rgba(255,255,255,.1);color:var(--silver-dark);font-size:.78rem;padding:.35rem .75rem; }
-  .btn-no-winner:hover { border-color:rgba(255,255,255,.25);color:var(--silver-dim); }
+/* TABS */
+.tabs { display:flex;gap:0;border-radius:5px;overflow:hidden;border:1px solid rgba(59,130,246,.2);margin-bottom:1rem; }
+.tab { flex:1;text-align:center;padding:.5rem;font-family:'Barlow Condensed',sans-serif;font-size:.9rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;background:transparent;color:var(--silver-dark);border:none;transition:all .2s; }
+.tab.active { background:rgba(59,130,246,.22);color:var(--cyan); }
+.tab:hover:not(.active) { background:rgba(255,255,255,.04);color:var(--silver); }
 
-  .winner-badge { font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.1em;color:var(--green);padding:.2rem .55rem;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);border-radius:3px;flex-shrink:0; }
+.empty-state { font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--silver-dark);text-align:center;padding:1.2rem .5rem; }
+.actions { display:flex;gap:.6rem;flex-wrap:wrap;align-items:center; }
 
-  /* ADD MATCH BUTTON */
-  .btn-add-match { background:rgba(59,130,246,.08);border:1px dashed rgba(59,130,246,.35);border-radius:5px;padding:.7rem 1.2rem;color:var(--blue-b);font-family:'Barlow Condensed',sans-serif;font-size:.95rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;width:100%; }
-  .btn-add-match:hover { background:rgba(59,130,246,.18);border-color:var(--blue-b);color:var(--white); }
-
-  /* LEADERBOARD */
-  .lb-row { display:flex;align-items:center;gap:.75rem;padding:.55rem .7rem;border-radius:4px;transition:background .15s; }
-  .lb-row:hover { background:rgba(59,130,246,.05); }
-  .lb-pos { font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.2rem;width:28px;text-align:center;flex-shrink:0; }
-  .lb-pos.gold   { color:#fbbf24; }
-  .lb-pos.silver { color:#94a3b8; }
-  .lb-pos.bronze { color:#b45309; }
-  .lb-pos.other  { color:rgba(59,130,246,.35); }
-  .lb-name { flex:1;font-size:.95rem;color:var(--silver); }
-  .lb-bar-track { flex:2;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden; }
-  .lb-bar-fill { height:100%;background:linear-gradient(90deg,var(--blue-b),var(--cyan));border-radius:3px;transition:width .4s ease; }
-  .lb-wins { font-family:'JetBrains Mono',monospace;font-size:.82rem;color:var(--cyan);min-width:55px;text-align:right;flex-shrink:0; }
-  .lb-empty { font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--silver-dark);padding:.5rem; }
-
-  /* ACTIONS */
-  .actions { display:flex;gap:.7rem;flex-wrap:wrap;justify-content:flex-end;margin-top:.5rem; }
-  .nav-link { display:inline-flex;align-items:center;gap:.4rem;font-family:'Barlow Condensed',sans-serif;font-size:.9rem;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan-dim);padding:.35rem 1rem;border:1px solid rgba(56,189,248,.25);border-radius:4px;text-decoration:none;transition:all .2s; }
-  .nav-link:hover { color:var(--white);border-color:var(--cyan); }
-
-  @media (max-width:600px) {
-    .card { padding:1rem; }
-    .teams-grid { grid-template-columns:1fr 30px 1fr; }
-  }
-  /* STATS */
-  .stat-row { display:flex;align-items:center;gap:.75rem;padding:.5rem .6rem;border-radius:4px;transition:background .15s; }
-  .stat-row:hover { background:rgba(59,130,246,.05); }
-  .stat-pos { font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.1rem;width:26px;text-align:center;flex-shrink:0; }
-  .stat-pos.gold   { color:#fbbf24; }
-  .stat-pos.silver { color:#94a3b8; }
-  .stat-pos.bronze { color:#b45309; }
-  .stat-pos.other  { color:rgba(59,130,246,.35); }
-  .stat-name { flex:1;font-size:.92rem;color:var(--silver); }
-  .stat-bars { flex:2;display:flex;flex-direction:column;gap:3px; }
-  .stat-bar-row { display:flex;align-items:center;gap:.4rem; }
-  .stat-bar-label { font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--silver-dark);width:38px;text-align:right;flex-shrink:0; }
-  .stat-bar-track { flex:1;height:4px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden; }
-  .stat-bar-fill-win  { height:100%;background:linear-gradient(90deg,var(--blue-b),var(--cyan));border-radius:3px;transition:width .4s; }
-  .stat-bar-fill-play { height:100%;background:rgba(148,163,184,.25);border-radius:3px;transition:width .4s; }
-  .stat-nums { font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--cyan);min-width:70px;text-align:right;flex-shrink:0; }
-  .stat-rate { font-size:.65rem;color:var(--silver-dark); }
-
-  .history-session { background:var(--felt-mid);border:1px solid rgba(59,130,246,.14);border-radius:5px;padding:.8rem 1rem;margin-bottom:.6rem;cursor:pointer;transition:border-color .2s; }
-  .history-session:hover { border-color:rgba(59,130,246,.35); }
-  .history-session-header { display:flex;align-items:center;gap:.75rem;flex-wrap:wrap; }
-  .history-date { font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1rem;color:var(--cyan);letter-spacing:.06em; }
-  .history-meta { font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--silver-dark);flex:1; }
-  .history-top  { font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--green); }
-  .history-del  { background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:3px;color:#f87171;font-size:.72rem;padding:.15rem .45rem;cursor:pointer;flex-shrink:0; }
-  .history-matches { margin-top:.7rem;display:flex;flex-direction:column;gap:.3rem;display:none; }
-  .history-match-row { font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--silver-dim);padding:.2rem .4rem;background:rgba(0,0,0,.15);border-radius:3px; }
-  .history-match-row .winner-tag { color:var(--green); }
-
+@media(max-width:600px){
+  .card { padding:1rem; }
+  .teams-grid { grid-template-columns:1fr 30px 1fr; }
+}
 </style>
 </head>
 <body>
+<datalist id="dlPlayers"></datalist>
 <div class="container">
 
-  <header>
-    <div class="header-rule"><span></span><div class="ball"></div><span></span></div>
-    <h1>PARTI<span>DAS</span></h1>
-    <p class="tagline">// contador de partidas &amp; clasificación //</p>
-  </header>
+<header>
+  <div class="header-rule"><span></span><div class="ball"></div><span></span></div>
+  <h1>PARTI<span>DAS</span></h1>
+  <p class="tagline">// contador de partidas &amp; clasificación //</p>
+</header>
 
-  <!-- DATE + NAV BAR -->
-  <div class="session-bar" style="justify-content:space-between;flex-wrap:wrap;gap:.6rem;">
-    <div style="display:flex;align-items:center;gap:.6rem;">
-      <label style="font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--silver-dim);margin:0">Fecha</label>
-      <input type="date" id="sessionDate"
-        style="background:var(--navy);border:1px solid rgba(59,130,246,.25);border-radius:4px;color:var(--white);font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.35rem .6rem;outline:none;"
-        oninput="saveDate()">
+<!-- ADMIN CONFIG MODAL (Ctrl+Shift+K) -->
+<div class="cfg-overlay" id="cfgOverlay" onclick="if(event.target===this)closeCfg()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:var(--felt);border:1px solid rgba(251,191,36,.35);border-radius:8px;padding:1.5rem;width:min(480px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.8)">
+    <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;letter-spacing:.15em;text-transform:uppercase;color:var(--amber);margin-bottom:1rem">⚙ Configuración de base de datos</h3>
+    <div style="display:grid;gap:.7rem;margin-bottom:1rem">
+      <div><label>Project URL</label><input type="text" id="cfgUrl" placeholder="https://xxxx.supabase.co" oninput="saveCfg()"></div>
+      <div><label>Anon Key</label><input type="text" id="cfgKey" placeholder="eyJ…" oninput="saveCfg()"></div>
     </div>
-    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
-      <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem;" onclick="saveSession()">💾 Guardar sesión</button>
-      <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem;" onclick="toggleStats()">📊 Estadísticas</button>
-      <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem;" onclick="exportCSV()">⬇ Exportar CSV</button>
-      <label class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem;cursor:pointer;">⬆ Importar CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(this)"></label>
+    <div style="display:flex;gap:.6rem;justify-content:flex-end">
+      <button class="btn-ghost" onclick="closeCfg()">Cerrar</button>
+      <button class="btn-primary" onclick="applyConfig()">Conectar</button>
     </div>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--silver-dark);margin-top:.5rem">Acceso: Ctrl+Shift+K</p>
   </div>
-
-  <!-- STATS PANEL (hidden by default) -->
-  <div id="statsPanel" style="display:none;">
-
-    <!-- ALL-TIME RANKING -->
-    <div class="card">
-      <div class="card-title"><div class="dot"></div>Ranking histórico — Todos los tiempos</div>
-      <div id="statsRanking"><div class="lb-empty">Guarda sesiones para ver el ranking histórico</div></div>
-    </div>
-
-    <!-- SESSION HISTORY -->
-    <div class="card">
-      <div class="card-title"><div class="dot"></div>Historial de sesiones</div>
-      <div id="statsHistory"><div class="lb-empty">No hay sesiones guardadas todavía</div></div>
-    </div>
-
-  </div>
-
-  <!-- SESSION BAR -->
-  <div class="session-bar">
-    <div class="live-dot" id="liveDot"></div>
-    <span class="conn-label" id="connLabel">Conectando…</span>
-    <div class="mode-toggle">
-      <button class="mode-btn" id="btnLive"  onclick="setMode('live')">En directo</button>
-      <button class="mode-btn" id="btnLocal" onclick="setMode('local')">Solo local</button>
-    </div>
-    <div class="session-id-box" id="sessionIdBox">—</div>
-    <button class="btn-copy" id="btnCopy" onclick="copyLink()">Copiar enlace</button>
-    <a class="nav-link" id="linkGastos" href="index.html">← Gastos</a>
-  </div>
-
-  <!-- LEADERBOARD -->
-  <div class="card">
-    <div class="card-title"><div class="dot"></div>Clasificación</div>
-    <div id="leaderboard"><div class="lb-empty">Registra partidas para ver la clasificación</div></div>
-  </div>
-
-  <!-- MATCHES -->
-  <div class="card">
-    <div class="card-title"><div class="dot"></div>Partidas</div>
-    <div class="matches-list" id="matchesList"></div>
-    <button class="btn-add-match" onclick="addMatch()">+ Nueva partida</button>
-  </div>
-
-  <div class="actions">
-    <button class="btn-ghost" onclick="clearAll()">Limpiar todo</button>
-  </div>
-
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+<!-- DB STRIP -->
+<div class="db-strip">
+  <div class="db-dot off" id="dbDot"></div>
+  <span class="db-label" id="dbLabel">BD no configurada</span>
+</div>
+
+<!-- DATE + ACTIONS BAR -->
+<div class="session-bar" style="justify-content:space-between;flex-wrap:wrap;gap:.6rem;">
+  <div style="display:flex;align-items:center;gap:.6rem;">
+    <label style="margin:0;font-size:.65rem">Fecha</label>
+    <input type="date" id="sessionDate"
+      style="background:var(--navy);border:1px solid rgba(59,130,246,.25);border-radius:4px;color:var(--white);font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.35rem .6rem;outline:none;width:auto"
+      onchange="saveLocal()">
+  </div>
+  <div class="actions">
+    <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="saveSession()">💾 Guardar sesión</button>
+    <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="toggleStats()">📊 Estadísticas</button>
+    <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="exportCSV()">⬇ Exportar CSV</button>
+    <label class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem;cursor:pointer">⬆ Importar CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(this)"></label>
+  </div>
+</div>
+
+<!-- STATS PANEL (hidden) -->
+<div id="statsPanel" style="display:none">
+  <div class="card">
+    <div class="card-title"><div class="dot"></div>Ranking histórico — Todos los tiempos</div>
+    <div id="statsRanking"><div class="lb-empty">Guarda sesiones para ver el ranking histórico.</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><div class="dot"></div>Historial de sesiones</div>
+    <div id="statsHistory"><div class="lb-empty">No hay sesiones guardadas todavía.</div></div>
+  </div>
+</div>
+
+<!-- SYNC BAR -->
+<div class="session-bar">
+  <div class="live-dot" id="liveDot"></div>
+  <span class="conn-label" id="connLabel">Solo local</span>
+  <div class="mode-toggle">
+    <button class="mode-btn active-local" id="btnLocal" onclick="setMode('local')">Solo local</button>
+    <button class="mode-btn" id="btnLive"  onclick="setMode('live')">En directo</button>
+  </div>
+  <div class="session-id-box" id="sessionIdBox">—</div>
+  <button class="btn-copy" id="btnCopy" onclick="copyLink()">Copiar enlace</button>
+  <a class="nav-link" id="linkGastos" href="index.html">← Gastos</a>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="card">
+  <div class="card-title"><div class="dot"></div>Clasificación</div>
+  <div id="leaderboard"><div class="lb-empty">Registra partidas para ver la clasificación.</div></div>
+</div>
+
+<!-- MATCHES -->
+<div class="card">
+  <div class="card-title"><div class="dot"></div>Partidas</div>
+  <div class="matches-list" id="matchesList"></div>
+  <button class="btn-add-match" onclick="addMatch()">+ Nueva partida</button>
+</div>
+
+</div><!-- /container -->
 <script>
-/* ═══════════════════════════════════════════
-   SESSION & MODE
-═══════════════════════════════════════════ */
-let sessionId = location.hash.slice(1).replace(/[^a-zA-Z0-9]/g,'');
-if (!sessionId) {
-  sessionId = Math.random().toString(36).slice(2,8).toUpperCase();
-  history.replaceState(null,'','#'+sessionId);
+// ══════════════════════════════════════════════════════════
+//  SUPABASE
+// ══════════════════════════════════════════════════════════
+let SUPA_URL = localStorage.getItem('sb_url') || '';
+let SUPA_KEY = localStorage.getItem('sb_key') || '';
+let sb = null, sbReady = false;
+
+function saveCfg() {
+  SUPA_URL = document.getElementById('cfgUrl').value.trim();
+  SUPA_KEY = document.getElementById('cfgKey').value.trim();
+  localStorage.setItem('sb_url', SUPA_URL);
+  localStorage.setItem('sb_key', SUPA_KEY);
 }
-document.getElementById('sessionIdBox').textContent = sessionId;
-document.getElementById('linkGastos').href = `index.html#${sessionId}`;
+function openCfg()  { const o=document.getElementById('cfgOverlay'); o.style.display='flex'; }
+function closeCfg() { document.getElementById('cfgOverlay').style.display='none'; }
+function applyConfig() { saveCfg(); initSupabase(); closeCfg(); }
 
-const isLocal = localStorage.getItem('ps-mode') === 'local';
-
-function setMode(mode) { localStorage.setItem('ps-mode',mode); location.reload(); }
-
-document.getElementById('btnLive').className  = 'mode-btn'+(!isLocal?' active-live':'');
-document.getElementById('btnLocal').className = 'mode-btn'+(isLocal?' active-local':'');
-if (isLocal) {
-  document.getElementById('sessionIdBox').style.display = 'none';
-  document.getElementById('btnCopy').style.display      = 'none';
-  document.getElementById('connLabel').textContent      = 'Solo local';
-  document.getElementById('liveDot').className          = 'live-dot off';
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'K') { e.preventDefault(); openCfg(); }
+});
+function initSupabase() {
+  if (!SUPA_URL.includes('supabase') || !SUPA_KEY.startsWith('eyJ')) {
+    if (SUPA_URL || SUPA_KEY) setDb('err', 'Error de configuración');
+    return;
+  }
+  try { sb = supabase.createClient(SUPA_URL, SUPA_KEY); checkSupabase(); }
+  catch(e) { setDb('err', 'Error al inicializar'); }
 }
-
-/* ═══════════════════════════════════════════
-   GUN SETUP
-═══════════════════════════════════════════ */
-const gun = isLocal
-  ? Gun({ localStorage:true })
-  : Gun({ peers:['https://gun.eco/gun','https://gundb-relay-mlmbl.ondigitalocean.app/gun'], localStorage:true });
-
-const root       = gun.get('poolsplitter-p1').get(sessionId);
-const matchesRef = root.get('matches');
-
-let peerCount = 0;
-if (!isLocal) {
-  gun.on('hi', ()=>{ peerCount++; setStatus(true); });
-  gun.on('bye',()=>{ peerCount=Math.max(0,peerCount-1); if(!peerCount) setStatus(false); });
-  setTimeout(()=>{ if(!peerCount) setStatus(false); },5000);
-}
-function setStatus(on) {
-  document.getElementById('liveDot').className     = 'live-dot '+(on?'on':'off');
-  document.getElementById('connLabel').textContent = on?'En directo':'Sin conexión';
-}
-
-/* ═══════════════════════════════════════════
-   STATE
-═══════════════════════════════════════════ */
-let matches = {}; // id → {mesa, format, teamA[], teamB[], winner, date}
-let matchCount = 0;
-let lastLocalUpdate = {}; // id → timestamp, para evitar que Gun sobreescriba cambios locales
-
-/* ═══════════════════════════════════════════
-   LOCAL STORAGE
-═══════════════════════════════════════════ */
-function localSave() {
-  localStorage.setItem(`ps-matches-${sessionId}`, JSON.stringify(matches));
-}
-function localLoad() {
+async function checkSupabase() {
   try {
-    const saved = JSON.parse(localStorage.getItem(`ps-matches-${sessionId}`)||'{}');
-    Object.entries(saved).forEach(([id,data]) => {
-      if (!data||data._del) return;
-      matches[id] = data;
-      matchCount++;
-      renderMatchCard(id, data);
+    const { error } = await sb.from('partidas_sessions').select('id').limit(1);
+    if (error) throw error;
+    sbReady = true; setDb('ok', 'BD conectada');
+    await loadHistoryFromDB();
+  } catch(e) { sbReady = false; setDb('err', 'Error: ' + e.message.slice(0,40)); }
+}
+function setDb(state, msg) {
+  document.getElementById('dbDot').className = 'db-dot ' + state;
+  document.getElementById('dbLabel').textContent = msg;
+}
+
+// ══════════════════════════════════════════════════════════
+//  GUN / SYNC
+// ══════════════════════════════════════════════════════════
+let isLocal = true, gun = null, gunNode = null, sessionId = '', lastLocal = 0;
+
+function initSession() {
+  sessionId = location.hash.slice(1).replace(/[^a-zA-Z0-9]/g,'');
+  if (!sessionId) sessionId = Math.random().toString(36).slice(2,8).toUpperCase();
+  location.hash = sessionId;
+  document.getElementById('sessionIdBox').textContent = sessionId;
+  document.getElementById('linkGastos').href = 'index.html#' + sessionId;
+}
+
+function setMode(mode) {
+  isLocal = mode === 'local';
+  document.getElementById('btnLocal').className = 'mode-btn' + (isLocal ? ' active-local' : '');
+  document.getElementById('btnLive').className  = 'mode-btn' + (!isLocal ? ' active-live' : '');
+  const dot = document.getElementById('liveDot');
+  const lbl = document.getElementById('connLabel');
+  if (isLocal) {
+    dot.className = 'live-dot off'; lbl.textContent = 'Solo local';
+    gun = null; gunNode = null;
+  } else {
+    dot.className = 'live-dot on'; lbl.textContent = 'En directo · ' + sessionId;
+    gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+    gunNode = gun.get('ps-partidas-' + sessionId);
+    gunNode.on(d => {
+      if (Date.now() - lastLocal < 2000) return;
+      if (['INPUT','SELECT'].includes(document.activeElement.tagName)) return;
+      if (d && d.state) try {
+        const s = JSON.parse(d.state);
+        matches = s.matches || [];
+        document.getElementById('sessionDate').value = s.fecha || '';
+        renderAll();
+      } catch(e) {}
     });
-    renderLeaderboard();
-  } catch(e) {}
+  }
 }
 
-/* ═══════════════════════════════════════════
-   GUN LISTENER
-═══════════════════════════════════════════ */
-if (!isLocal) {
-  matchesRef.map().on((data,id) => {
-    if (!data||data._del) {
-      delete matches[id];
-      document.getElementById(`match-${id}`)?.remove();
-    } else {
-      // Ignorar si acabamos de guardar localmente (evita el echo de Gun)
-      const justSaved = lastLocalUpdate[id] && (Date.now() - lastLocalUpdate[id] < 800);
-      const card = document.getElementById(`match-${id}`);
-      const hasFocus = card && card.contains(document.activeElement);
-      if (!justSaved && !hasFocus) {
-        matches[id] = deserializeMatch(data);
-        renderMatchCard(id, data);
-      } else if (!matches[id]) {
-        matches[id] = deserializeMatch(data);
-      }
-    }
-    renderLeaderboard();
-  });
+function pushGun() {
+  if (isLocal || !gunNode) return;
+  lastLocal = Date.now();
+  gunNode.put({ state: JSON.stringify({ matches, fecha: document.getElementById('sessionDate').value }) });
 }
 
-/* ═══════════════════════════════════════════
-   MATCH CRUD
-═══════════════════════════════════════════ */
+function copyLink() {
+  navigator.clipboard.writeText(location.href);
+  const btn = document.getElementById('btnCopy');
+  btn.textContent = '✓ Copiado'; btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copiar enlace'; btn.classList.remove('copied'); }, 2000);
+}
+
+// ══════════════════════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════════════════════
+let matches = [], sessionHistory = [];
+const FORMATS = { '1v1': [1,1], '2v1': [2,1], '2v2': [2,2] };
+
 function addMatch() {
-  const id   = 'm'+Date.now();
-  const data = { mesa:'', format:'1v1', teamA:[''], teamB:[''], winner:null, date:Date.now(), _del:false };
-  matches[id] = data;
-  matchCount++;
-  renderMatchCard(id, data);
-  if (isLocal) localSave(); else matchesRef.get(id).put(serializeMatch(data));
+  matches.push({ id: uid(), mesa: 'Mesa 1', formato: '1v1', equipo1: [''], equipo2: [''], ganador: null });
+  renderMatches(); saveLocal(); pushGun();
 }
 
 function removeMatch(id) {
-  const el = document.getElementById(`match-${id}`);
-  if (el) { el.style.opacity='0'; el.style.transform='translateY(-4px)'; el.style.transition='all .2s'; setTimeout(()=>el.remove(),200); }
-  delete matches[id];
-  if (isLocal) localSave(); else matchesRef.get(id).put({ _del:true });
-  renderLeaderboard();
+  matches = matches.filter(m => m.id !== id);
+  renderAll(); saveLocal(); pushGun();
 }
 
-function serializeMatch(data) {
-  return { ...data, teamA: JSON.stringify(data.teamA||[]), teamB: JSON.stringify(data.teamB||[]) };
-}
-function deserializeMatch(data) {
-  if (!data) return null;
-  try {
-    return { ...data,
-      teamA: typeof data.teamA==='string' ? JSON.parse(data.teamA) : (data.teamA||['']),
-      teamB: typeof data.teamB==='string' ? JSON.parse(data.teamB) : (data.teamB||[''])
-    };
-  } catch(e) { return data; }
+function setFormato(id, fmt) {
+  const m = getMatch(id); if (!m) return;
+  const [s1, s2] = FORMATS[fmt];
+  m.formato = fmt;
+  m.equipo1 = Array(s1).fill('');
+  m.equipo2 = Array(s2).fill('');
+  m.ganador = null;
+  renderMatches(); calcLeaderboard(); saveLocal(); pushGun();
 }
 
-/* ═══════════════════════════════════════════
-   FORMAT LOGIC
-═══════════════════════════════════════════ */
-const FORMAT_SIZES = { '1v1':[1,1], '2v1':[2,1], '2v2':[2,2] };
-
-function setFormat(id, fmt) {
-  const m = matches[id];
-  if (!m) return;
-  const [sA, sB] = FORMAT_SIZES[fmt];
-  m.format  = fmt;
-  m.teamA   = adjustArray(m.teamA, sA);
-  m.teamB   = adjustArray(m.teamB, sB);
-  m.winner  = null;
-  saveMatch(id);
-  rebuildMatchCard(id);
+function setGanador(id, team) {
+  const m = getMatch(id); if (!m) return;
+  m.ganador = m.ganador === team ? null : team;
+  renderMatches(); calcLeaderboard(); saveLocal(); pushGun();
 }
 
-function adjustArray(arr, size) {
-  const a = [...(arr||[])];
-  while (a.length < size) a.push('');
-  return a.slice(0, size);
+function getMatch(id) { return matches.find(m => m.id === id); }
+
+function renderMatches() {
+  const c = document.getElementById('matchesList');
+  if (!matches.length) { c.innerHTML = '<div class="empty-state">Sin partidas. Añade la primera.</div>'; return; }
+  c.innerHTML = matches.map((m, i) => {
+    const [s1, s2] = FORMATS[m.formato];
+    const n1 = m.equipo1.filter(Boolean).join(' & ') || 'Equipo 1';
+    const n2 = m.equipo2.filter(Boolean).join(' & ') || 'Equipo 2';
+    return `
+      <div class="match-card${m.ganador ? ' has-winner' : ''}">
+        <div class="match-header">
+          <span class="match-num">#${i+1}</span>
+          <input type="text" value="${esc(m.mesa)}" placeholder="Mesa"
+            oninput="getMatch('${m.id}').mesa=this.value;saveLocal();pushGun()" style="max-width:160px">
+          <div class="format-toggle">
+            ${['1v1','2v1','2v2'].map(f=>`<button class="fmt-btn${f===m.formato?' active':''}" onclick="setFormato('${m.id}','${f}')">${f}</button>`).join('')}
+          </div>
+          <button class="btn-remove" onclick="removeMatch('${m.id}')" style="margin-left:auto">✕</button>
+        </div>
+        <div class="teams-grid">
+          <div>
+            <div class="team-label">Equipo 1</div>
+            <div class="team-inputs">
+              ${m.equipo1.map((n,k)=>`
+                <div>
+                  ${_gp().length?`<select style="width:100%;font-size:.82rem;padding:.32rem .5rem;background:var(--navy);border:1px solid rgba(59,130,246,.2);border-radius:4px;color:var(--white)"
+                    onchange="getMatch('${m.id}').equipo1[${k}]=this.value;calcLeaderboard();saveLocal();pushGun()">
+                    <option value="">— Seleccionar —</option>
+                    ${_gp().map(p=>`<option value="${esc(p.name)}"${n===p.name?'selected':''}>${esc(p.name)}</option>`).join('')}
+                  </select>`:`<input type="text" value="${esc(n)}" placeholder="Jugador ${k+1}" list="dlPlayers"
+                    oninput="getMatch('${m.id}').equipo1[${k}]=this.value;calcLeaderboard();saveLocal();pushGun()">`}
+                </div>`).join('')}
+            </div>
+          </div>
+          <div class="vs-col">VS</div>
+          <div>
+            <div class="team-label">Equipo 2</div>
+            <div class="team-inputs">
+              ${m.equipo2.map((n,k)=>`
+                <div>
+                  ${_gp().length?`<select style="width:100%;font-size:.82rem;padding:.32rem .5rem;background:var(--navy);border:1px solid rgba(59,130,246,.2);border-radius:4px;color:var(--white)"
+                    onchange="getMatch('${m.id}').equipo2[${k}]=this.value;calcLeaderboard();saveLocal();pushGun()">
+                    <option value="">— Seleccionar —</option>
+                    ${_gp().map(p=>`<option value="${esc(p.name)}"${n===p.name?'selected':''}>${esc(p.name)}</option>`).join('')}
+                  </select>`:`<input type="text" value="${esc(n)}" placeholder="Jugador ${k+1}" list="dlPlayers"
+                    oninput="getMatch('${m.id}').equipo2[${k}]=this.value;calcLeaderboard();saveLocal();pushGun()">`}
+                </div>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="winner-row">
+          <span class="winner-label">Ganador →</span>
+          <button class="btn-win${m.ganador===1?' winner':''}" onclick="setGanador('${m.id}',1)">
+            ${m.ganador===1?'🏆 ':''}${esc(n1)}
+          </button>
+          <button class="btn-win${m.ganador===2?' winner':''}" onclick="setGanador('${m.id}',2)">
+            ${m.ganador===2?'🏆 ':''}${esc(n2)}
+          </button>
+          ${m.ganador ? `<span class="winner-tag">✓ registrado</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
 }
 
-/* ═══════════════════════════════════════════
-   PLAYER EDITING
-═══════════════════════════════════════════ */
-function addPlayer(id, team) {
-  const m = matches[id];
-  if (!m) return;
-  const [sA, sB] = FORMAT_SIZES[m.format];
-  if (team==='A' && m.teamA.length >= sA) return;
-  if (team==='B' && m.teamB.length >= sB) return;
-  if (team==='A') m.teamA.push(''); else m.teamB.push('');
-  saveMatch(id);
-  rebuildMatchCard(id);
-}
-
-function removePlayer(id, team, idx) {
-  const m = matches[id];
-  if (!m) return;
-  if (team==='A') m.teamA.splice(idx,1); else m.teamB.splice(idx,1);
-  saveMatch(id);
-  rebuildMatchCard(id);
-}
-
-function onPlayerName(id, team, idx, val) {
-  const m = matches[id];
-  if (!m) return;
-  if (team==='A') m.teamA[idx]=val; else m.teamB[idx]=val;
-  // Solo guardamos — NO reconstruimos el card para no perder el foco del teclado
-  saveMatch(id);
-  renderLeaderboard();
-}
-
-function onMesaInput(id, val) {
-  const m = matches[id];
-  if (!m) return;
-  m.mesa = val;
-  // Solo guardamos — NO reconstruimos
-  saveMatch(id);
-}
-
-function setWinner(id, team) {
-  const m = matches[id];
-  if (!m) return;
-  m.winner = (m.winner===team) ? null : team;  // toggle off if same
-  saveMatch(id);
-  updateWinnerUI(id);
-  renderLeaderboard();
-}
-
-function saveMatch(id) {
-  lastLocalUpdate[id] = Date.now();
-  if (isLocal) localSave();
-  else matchesRef.get(id).put(serializeMatch(matches[id]));
-}
-
-/* ═══════════════════════════════════════════
-   RENDER
-═══════════════════════════════════════════ */
-function renderMatchCard(id, rawData) {
-  const data = deserializeMatch(rawData);
-  if (!data || data._del) return;
-  matches[id] = data;
-
-  if (!document.getElementById(`match-${id}`)) {
-    const el = document.createElement('div');
-    el.id = `match-${id}`;
-    el.className = 'match-card' + (data.winner?' has-winner':'');
-    document.getElementById('matchesList').appendChild(el);
-  }
-  rebuildMatchCard(id);
-}
-
-function rebuildMatchCard(id) {
-  const m  = matches[id];
-  const el = document.getElementById(`match-${id}`);
-  if (!m || !el) return;
-
-  const fmt        = m.format || '1v1';
-  const [sA, sB]   = FORMAT_SIZES[fmt];
-  // Asegurar que los arrays tienen el tamaño correcto
-  m.teamA = adjustArray(m.teamA, sA);
-  m.teamB = adjustArray(m.teamB, sB);
-
-  el.className = 'match-card'+(m.winner?' has-winner':'');
-
-  const fmts    = ['1v1','2v1','2v2'];
-  const fmtBtns = fmts.map(f=>
-    `<button class="fmt-btn${fmt===f?' active':''}" onclick="setFormat('${id}','${f}')">${f}</button>`
-  ).join('');
-
-  const teamARows = m.teamA.map((p,i)=>`
-    <div class="player-input-row">
-      <input type="text" value="${(p||'').replace(/"/g,'&quot;')}" placeholder="Jugador ${i+1}"
-        oninput="onPlayerName('${id}','A',${i},this.value)">
-      ${sA > 1 && m.teamA.length > 1 ? `<button class="btn-remove" onclick="removePlayer('${id}','A',${i})">×</button>` : ''}
-    </div>`).join('');
-
-  const teamBRows = m.teamB.map((p,i)=>`
-    <div class="player-input-row">
-      <input type="text" value="${(p||'').replace(/"/g,'&quot;')}" placeholder="Jugador ${i+1}"
-        oninput="onPlayerName('${id}','B',${i},this.value)">
-      ${sB > 1 && m.teamB.length > 1 ? `<button class="btn-remove" onclick="removePlayer('${id}','B',${i})">×</button>` : ''}
-    </div>`).join('');
-
-  const winnerLabel = m.winner
-    ? `<span class="winner-badge">🏆 Gana Equipo ${m.winner}</span>` : '';
-
-  el.innerHTML = `
-    <div class="match-header">
-      <span class="match-num">#${Object.keys(matches).indexOf(id)+1}</span>
-      <input type="text" value="${(m.mesa||'').replace(/"/g,'&quot;')}" placeholder="Mesa…"
-        style="flex:1;min-width:100px;background:rgba(0,0,0,.2);border-color:rgba(59,130,246,.15);font-family:'Barlow',sans-serif;font-size:.9rem;padding:.35rem .55rem;"
-        oninput="onMesaInput('${id}',this.value)">
-      <div class="format-toggle">${fmtBtns}</div>
-      <button class="btn-remove" onclick="removeMatch('${id}')">×</button>
-    </div>
-
-    <div class="teams-grid">
-      <div class="team-col">
-        <div class="team-label a">Equipo A</div>
-        ${teamARows}
-      </div>
-      <div class="vs-col"><span class="vs-badge">VS</span></div>
-      <div class="team-col">
-        <div class="team-label b">Equipo B</div>
-        ${teamBRows}
-      </div>
-    </div>
-
-    <div class="winner-row">
-      <button class="btn-winner btn-winner-a${m.winner==='A'?' won':''}" onclick="setWinner('${id}','A')">🏆 Gana Equipo A</button>
-      <button class="btn-winner btn-winner-b${m.winner==='B'?' won':''}" onclick="setWinner('${id}','B')">🏆 Gana Equipo B</button>
-      ${winnerLabel}
-      ${m.winner?`<button class="btn-ghost btn-no-winner" onclick="setWinner('${id}','${m.winner}')">Deshacer</button>`:''}
-    </div>
-  `;
-}
-
-function updateWinnerUI(id) {
-  rebuildMatchCard(id); // full rebuild is simplest here
-}
-
-/* ═══════════════════════════════════════════
-   LEADERBOARD
-═══════════════════════════════════════════ */
-function renderLeaderboard() {
-  const wins   = {};
-  const played = {};
-
-  Object.values(matches).forEach(m => {
-    if (!m || m._del) return;
-    const winners = m.winner==='A' ? (m.teamA||[]) : m.winner==='B' ? (m.teamB||[]) : [];
-    const losers  = m.winner==='A' ? (m.teamB||[]) : m.winner==='B' ? (m.teamA||[]) : [];
-    const all     = [...(m.teamA||[]), ...(m.teamB||[])];
-
-    all.forEach(p => {
-      p = p?.trim(); if (!p) return;
-      played[p] = (played[p]||0) + 1;
-    });
-    winners.forEach(p => {
-      p = p?.trim(); if (!p) return;
-      wins[p] = (wins[p]||0) + 1;
-    });
+function calcLeaderboard() {
+  const stats = {};
+  const reg = (name, win) => {
+    if (!name.trim()) return;
+    const n = name.trim();
+    if (!stats[n]) stats[n] = { wins: 0, games: 0 };
+    stats[n].games++;
+    if (win) stats[n].wins++;
+  };
+  matches.forEach(m => {
+    const hasWin = m.ganador !== null;
+    m.equipo1.forEach(n => reg(n, hasWin && m.ganador === 1));
+    m.equipo2.forEach(n => reg(n, hasWin && m.ganador === 2));
   });
-
-  const players = [...new Set([...Object.keys(wins), ...Object.keys(played)])]
-    .filter(p=>p)
-    .map(p => ({ name:p, wins:wins[p]||0, played:played[p]||0 }))
-    .sort((a,b) => b.wins-a.wins || b.played-a.played);
-
+  const sorted = Object.entries(stats).sort((a,b) => b[1].wins - a[1].wins || b[1].games - a[1].games);
   const lb = document.getElementById('leaderboard');
-  if (players.length===0) {
-    lb.innerHTML='<div class="lb-empty">Registra partidas para ver la clasificación</div>';
-    return;
-  }
-
-  const maxWins = players[0].wins || 1;
-  const medals  = ['gold','silver','bronze'];
-
-  lb.innerHTML = players.map((p,i) => `
-    <div class="lb-row">
-      <span class="lb-pos ${medals[i]||'other'}">${i+1}</span>
-      <span class="lb-name">${p.name}</span>
-      <div class="lb-bar-track"><div class="lb-bar-fill" style="width:${(p.wins/maxWins)*100}%"></div></div>
-      <span class="lb-wins">${p.wins} vic. <span style="color:var(--silver-dark);font-size:.7rem">/ ${p.played} part.</span></span>
+  if (!sorted.length) { lb.innerHTML = '<div class="lb-empty">Registra partidas para ver la clasificación.</div>'; return stats; }
+  const maxWins = sorted[0][1].wins || 1;
+  const maxGames = Math.max(...sorted.map(([,s])=>s.games)) || 1;
+  const posClass = i => ['gold','silver','bronze'][i] || 'other';
+  lb.innerHTML = sorted.map(([name, s], i) => `
+    <div class="stat-row">
+      <span class="stat-pos ${posClass(i)}">${i+1}</span>
+      <span class="stat-name">${esc(name)}</span>
+      <div class="stat-bars">
+        <div class="stat-bar-row">
+          <span class="stat-bar-label">VICT</span>
+          <div class="stat-bar-track"><div class="stat-bar-fill-win" style="width:${(s.wins/maxWins)*100}%"></div></div>
+        </div>
+        <div class="stat-bar-row">
+          <span class="stat-bar-label">PART</span>
+          <div class="stat-bar-track"><div class="stat-bar-fill-play" style="width:${(s.games/maxGames)*100}%"></div></div>
+        </div>
+      </div>
+      <span class="stat-nums">${s.wins}V · ${s.games}P <span class="stat-rate">${s.games?Math.round(s.wins/s.games*100):0}%</span></span>
     </div>`).join('');
+  return stats;
 }
 
-/* ═══════════════════════════════════════════
-   UTILS
-═══════════════════════════════════════════ */
-function copyLink() {
-  navigator.clipboard.writeText(location.href).then(()=>{
-    const btn=document.getElementById('btnCopy');
-    btn.textContent='✓ Copiado'; btn.className='btn-copy copied';
-    setTimeout(()=>{btn.textContent='Copiar enlace';btn.className='btn-copy';},2000);
-  }).catch(()=>prompt('Copia este enlace:',location.href));
-}
+function renderAll() { renderMatches(); calcLeaderboard(); }
 
-function clearAll() {
-  if (!confirm('¿Limpiar todas las partidas?')) return;
-  if (!isLocal) Object.keys(matches).forEach(id=>matchesRef.get(id).put({_del:true}));
-  matches = {};
-  document.getElementById('matchesList').innerHTML='';
-  if (isLocal) localSave();
-  renderLeaderboard();
-}
-
-/* ═══════════════════════════════════════════
-   INIT
-═══════════════════════════════════════════ */
-/* ═══════════════════════════════════════════
-   DATE & SESSION SAVE
-═══════════════════════════════════════════ */
-function saveDate() {
-  localStorage.setItem(`ps-pdate-${sessionId}`, document.getElementById('sessionDate').value);
-}
-function loadDate() {
-  const saved = localStorage.getItem(`ps-pdate-${sessionId}`);
-  document.getElementById('sessionDate').value = saved || new Date().toISOString().slice(0,10);
-}
-
-function saveSession() {
-  const date = document.getElementById('sessionDate').value || new Date().toISOString().slice(0,10);
-  const sessionMatches = Object.values(matches).filter(m => m && !m._del);
-  if (sessionMatches.length === 0) { alert('No hay partidas para guardar.'); return; }
-
-  const snapshot = sessionMatches.map(m => ({
-    format : m.format || '1v1',
-    mesa   : m.mesa   || '',
-    teamA  : (m.teamA || []).filter(p => p?.trim()),
-    teamB  : (m.teamB || []).filter(p => p?.trim()),
-    winner : m.winner || null
-  }));
-
-  const history = JSON.parse(localStorage.getItem('ps-match-history') || '[]');
-  history.unshift({ date, sessionId, matches: snapshot });
-  localStorage.setItem('ps-match-history', JSON.stringify(history.slice(0, 100)));
-  alert(`✓ Sesión del ${date} guardada — ${snapshot.length} partida${snapshot.length !== 1 ? 's' : ''}.`);
-  if (document.getElementById('statsPanel').style.display !== 'none') renderStats();
-}
-
-/* ═══════════════════════════════════════════
-   STATS PANEL
-═══════════════════════════════════════════ */
+// ══════════════════════════════════════════════════════════
+//  STATS PANEL
+// ══════════════════════════════════════════════════════════
+let statsOpen = false;
 function toggleStats() {
-  const panel = document.getElementById('statsPanel');
-  if (panel.style.display === 'none') {
-    renderStats();
-    panel.style.display = 'block';
-    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } else {
-    panel.style.display = 'none';
-  }
+  statsOpen = !statsOpen;
+  document.getElementById('statsPanel').style.display = statsOpen ? '' : 'none';
+  if (statsOpen) renderStats();
 }
 
 function renderStats() {
-  const history = JSON.parse(localStorage.getItem('ps-match-history') || '[]');
-  renderAllTimeRanking(history);
-  renderSessionHistory(history);
+  renderGlobalRanking();
+  renderSessionHistory();
 }
 
-function renderAllTimeRanking(history) {
-  const wins   = {};
-  const played = {};
-
-  history.forEach(session => {
-    (session.matches || []).forEach(m => {
-      const all     = [...(m.teamA||[]), ...(m.teamB||[])];
-      const winners = m.winner === 'A' ? (m.teamA||[]) : m.winner === 'B' ? (m.teamB||[]) : [];
-      all.forEach(p => { p = p?.trim(); if (p) played[p] = (played[p]||0) + 1; });
-      winners.forEach(p => { p = p?.trim(); if (p) wins[p] = (wins[p]||0) + 1; });
+function renderGlobalRanking() {
+  const global = {};
+  sessionHistory.forEach(h => {
+    Object.entries(h.clasificacion || {}).forEach(([name, s]) => {
+      if (!global[name]) global[name] = { wins: 0, games: 0 };
+      global[name].wins  += s.wins  || 0;
+      global[name].games += s.games || 0;
     });
   });
-
-  const players = [...new Set([...Object.keys(wins), ...Object.keys(played)])]
-    .filter(Boolean)
-    .map(p => ({ name:p, wins:wins[p]||0, played:played[p]||0 }))
-    .sort((a,b) => b.wins - a.wins || b.played - a.played);
-
-  const el = document.getElementById('statsRanking');
-  if (!players.length) { el.innerHTML = '<div class="lb-empty">Guarda sesiones para ver el ranking histórico</div>'; return; }
-
-  const maxWins   = players[0].wins   || 1;
-  const maxPlayed = Math.max(...players.map(p=>p.played)) || 1;
-  const medals    = ['gold','silver','bronze'];
-
-  el.innerHTML = players.map((p, i) => {
-    const rate = p.played ? Math.round((p.wins/p.played)*100) : 0;
-    return `<div class="stat-row">
-      <span class="stat-pos ${medals[i]||'other'}">${i+1}</span>
-      <span class="stat-name">${p.name}</span>
+  const sorted = Object.entries(global).sort((a,b) => b[1].wins - a[1].wins);
+  const c = document.getElementById('statsRanking');
+  if (!sorted.length) { c.innerHTML = '<div class="lb-empty">Guarda sesiones para ver el ranking histórico.</div>'; return; }
+  const maxW = sorted[0][1].wins || 1;
+  const maxG = Math.max(...sorted.map(([,s])=>s.games)) || 1;
+  const posClass = i => ['gold','silver','bronze'][i] || 'other';
+  c.innerHTML = sorted.map(([name,s], i) => `
+    <div class="stat-row">
+      <span class="stat-pos ${posClass(i)}">${i+1}</span>
+      <span class="stat-name">${esc(name)}</span>
       <div class="stat-bars">
-        <div class="stat-bar-row">
-          <span class="stat-bar-label">victorias</span>
-          <div class="stat-bar-track"><div class="stat-bar-fill-win" style="width:${(p.wins/maxWins)*100}%"></div></div>
+        <div class="stat-bar-row"><span class="stat-bar-label">VICT</span>
+          <div class="stat-bar-track"><div class="stat-bar-fill-win" style="width:${(s.wins/maxW)*100}%"></div></div>
         </div>
-        <div class="stat-bar-row">
-          <span class="stat-bar-label">partidas</span>
-          <div class="stat-bar-track"><div class="stat-bar-fill-play" style="width:${(p.played/maxPlayed)*100}%"></div></div>
+        <div class="stat-bar-row"><span class="stat-bar-label">PART</span>
+          <div class="stat-bar-track"><div class="stat-bar-fill-play" style="width:${(s.games/maxG)*100}%"></div></div>
         </div>
       </div>
-      <div class="stat-nums">${p.wins} vic.<br><span class="stat-rate">${p.played} jug. · ${rate}%</span></div>
-    </div>`;
+      <span class="stat-nums">${s.wins}V · ${s.games}P <span class="stat-rate">${s.games?Math.round(s.wins/s.games*100):0}%</span></span>
+    </div>`).join('');
+}
+
+function renderSessionHistory() {
+  const c = document.getElementById('statsHistory');
+  if (!sessionHistory.length) { c.innerHTML = '<div class="lb-empty">No hay sesiones guardadas todavía.</div>'; return; }
+  c.innerHTML = sessionHistory.map((h, idx) => {
+    const id = h.id || idx; const isDb = !!h.id;
+    const ps = h.partidas || [];
+    const cl = h.clasificacion || {};
+    const top = Object.entries(cl).sort((a,b)=>b[1].wins-a[1].wins).slice(0,3).map(([n,s])=>`${esc(n)} ${s.wins}V`).join(' · ');
+    return `
+      <div class="history-session" onclick="toggleDetail('hm${idx}')">
+        <div class="history-session-header">
+          <span class="history-date">${h.session_date}</span>
+          <span class="history-meta">${ps.length} partidas</span>
+          <span class="history-top">${top || '—'}</span>
+          <button class="history-del" onclick="event.stopPropagation();deleteHistory(${isDb?`'${id}'`:idx})">Borrar</button>
+        </div>
+        <div class="history-matches" id="hm${idx}">
+          ${ps.map(p => {
+            const n1 = p.equipo1.filter(Boolean).join(' & ') || 'E1';
+            const n2 = p.equipo2.filter(Boolean).join(' & ') || 'E2';
+            const winner = p.ganador===1?n1:p.ganador===2?n2:'—';
+            return `<div class="history-match-row">${esc(p.mesa)} (${p.formato}): ${esc(n1)} vs ${esc(n2)} → <span class="winner-tag-sm">${esc(winner)}</span></div>`;
+          }).join('')}
+        </div>
+      </div>`;
   }).join('');
 }
 
-function renderSessionHistory(history) {
-  const el = document.getElementById('statsHistory');
-  if (!history.length) { el.innerHTML = '<div class="lb-empty">No hay sesiones guardadas todavía</div>'; return; }
+function toggleDetail(id) { document.getElementById(id).classList.toggle('open'); }
 
-  el.innerHTML = history.map((s, idx) => {
-    const wins = {};
-    (s.matches||[]).forEach(m => {
-      const winners = m.winner==='A'?(m.teamA||[]):m.winner==='B'?(m.teamB||[]):[];
-      winners.forEach(p => { p=p?.trim(); if(p) wins[p]=(wins[p]||0)+1; });
-    });
-    const top = Object.entries(wins).sort((a,b)=>b[1]-a[1])[0];
-    const topStr = top ? `🏆 ${top[0]} (${top[1]} vic.)` : 'Sin resultados';
-    const matchCount = (s.matches||[]).length;
-
-    const matchRows = (s.matches||[]).map(m => {
-      const a = (m.teamA||[]).filter(p=>p?.trim()).join(' & ') || '—';
-      const b = (m.teamB||[]).filter(p=>p?.trim()).join(' & ') || '—';
-      const fmt = m.format || '1v1';
-      const result = m.winner
-        ? `<span class="winner-tag">Gana: ${m.winner==='A'?a:b}</span>`
-        : '<span style="color:var(--silver-dark)">Sin resultado</span>';
-      return `<div class="history-match-row">${fmt} · ${m.mesa||'Mesa'} · ${a} vs ${b} · ${result}</div>`;
-    }).join('');
-
-    return `<div class="history-session" onclick="toggleSessionDetail(${idx})">
-      <div class="history-session-header">
-        <span class="history-date">${s.date}</span>
-        <span class="history-meta">${matchCount} partida${matchCount!==1?'s':''}</span>
-        <span class="history-top">${topStr}</span>
-        <button class="history-del" onclick="event.stopPropagation();deleteSession(${idx})">Borrar</button>
-      </div>
-      <div class="history-matches" id="hist-detail-${idx}">${matchRows}</div>
-    </div>`;
-  }).join('');
+// ══════════════════════════════════════════════════════════
+//  HISTORY CRUD
+// ══════════════════════════════════════════════════════════
+async function saveSession() {
+  const fecha = document.getElementById('sessionDate').value || new Date().toISOString().slice(0,10);
+  const stats = calcLeaderboard() || {};
+  const entry = { session_date: fecha, partidas: JSON.parse(JSON.stringify(matches)), clasificacion: stats };
+  if (sbReady) {
+    try {
+      const { error } = await sb.from('partidas_sessions').insert(entry);
+      if (error) throw error;
+      await loadHistoryFromDB();
+      alert('✓ Sesión guardada en la base de datos.');
+    } catch(e) {
+      alert('⚠ Error BD: ' + e.message + '\nGuardado localmente.');
+      sessionHistory.push(entry);
+      localStorage.setItem('ps-history-partidas', JSON.stringify(sessionHistory));
+    }
+  } else {
+    sessionHistory.push(entry);
+    localStorage.setItem('ps-history-partidas', JSON.stringify(sessionHistory));
+    alert('✓ Sesión guardada localmente.');
+  }
+  if (statsOpen) renderStats();
 }
 
-function toggleSessionDetail(idx) {
-  const el = document.getElementById(`hist-detail-${idx}`);
-  if (!el) return;
-  el.style.display = el.style.display === 'none' || !el.style.display ? 'flex' : 'none';
-  el.style.flexDirection = 'column';
+async function loadHistoryFromDB() {
+  if (!sbReady) { sessionHistory = JSON.parse(localStorage.getItem('ps-history-partidas') || '[]'); return; }
+  try {
+    const { data, error } = await sb.from('partidas_sessions').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    sessionHistory = data || [];
+  } catch(e) { sessionHistory = JSON.parse(localStorage.getItem('ps-history-partidas') || '[]'); }
 }
 
-function deleteSession(idx) {
-  if (!confirm('¿Borrar esta sesión del historial?')) return;
-  const history = JSON.parse(localStorage.getItem('ps-match-history') || '[]');
-  history.splice(idx, 1);
-  localStorage.setItem('ps-match-history', JSON.stringify(history));
+async function deleteHistory(idOrIdx) {
+  if (!confirm('¿Borrar esta sesión?')) return;
+  if (sbReady && typeof idOrIdx === 'string') {
+    await sb.from('partidas_sessions').delete().eq('id', idOrIdx);
+    await loadHistoryFromDB();
+  } else {
+    sessionHistory.splice(+idOrIdx, 1);
+    localStorage.setItem('ps-history-partidas', JSON.stringify(sessionHistory));
+  }
   renderStats();
 }
 
-/* ═══════════════════════════════════════════
-   CSV — UTILIDADES
-═══════════════════════════════════════════ */
-function downloadCSV(content, filename) {
-  const blob = new Blob(['\ufeff'+content], {type:'text/csv;charset=utf-8;'});
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href=url; a.download=filename; a.click();
-  URL.revokeObjectURL(url);
-}
-
-function parseCSVLine(line) {
-  const result=[]; let cur=''; let inQ=false;
-  for (let i=0;i<line.length;i++) {
-    if (line[i]==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
-    else if (line[i]===','&&!inQ){result.push(cur);cur='';}
-    else cur+=line[i];
-  }
-  result.push(cur); return result;
-}
-
-function parseCSV(text) {
-  const lines=text.trim().split('\n').filter(l=>l.trim());
-  if (lines.length<2) return [];
-  const headers=parseCSVLine(lines[0]).map(h=>h.trim());
-  return lines.slice(1).map(line=>{
-    const vals=parseCSVLine(line); const obj={};
-    headers.forEach((h,i)=>obj[h]=(vals[i]||'').trim());
-    return obj;
-  });
-}
-
-/* ═══════════════════════════════════════════
-   CSV — EXPORTAR (partidas)
-   Exporta las partidas de la sesión actual
-   + el historial completo de estadísticas
-═══════════════════════════════════════════ */
+// ══════════════════════════════════════════════════════════
+//  CSV EXPORT / IMPORT
+// ══════════════════════════════════════════════════════════
 function exportCSV() {
-  const date = document.getElementById('sessionDate').value || new Date().toISOString().slice(0,10);
-  const esc  = v => `"${String(v||'').replace(/"/g,'""')}"`;
-
-  // Sesión actual
-  const rows = ['seccion,fecha,mesa,formato,equipo_a,equipo_b,ganador'];
-  Object.values(matches).filter(m=>m&&!m._del).forEach(m=>{
-    const a = (m.teamA||[]).filter(p=>p?.trim()).join(';');
-    const b = (m.teamB||[]).filter(p=>p?.trim()).join(';');
-    rows.push([`sesion_actual`,date,esc(m.mesa||''),m.format||'1v1',esc(a),esc(b),m.winner||''].join(','));
+  const fecha = document.getElementById('sessionDate').value;
+  let csv = '##POOL-SPLITTER-PARTIDAS-v2\n';
+  csv += `FECHA,${fecha}\n\n`;
+  csv += '##PARTIDAS\nMesa,Formato,Equipo1,Equipo2,Ganador\n';
+  matches.forEach(m => {
+    csv += `${q(m.mesa)},${m.formato},${q(m.equipo1.join('|'))},${q(m.equipo2.join('|'))},${m.ganador||''}\n`;
   });
-
-  // Historial completo
-  const history = JSON.parse(localStorage.getItem('ps-match-history')||'[]');
-  history.forEach(s=>{
-    (s.matches||[]).forEach(m=>{
-      const a=(m.teamA||[]).filter(p=>p?.trim()).join(';');
-      const b=(m.teamB||[]).filter(p=>p?.trim()).join(';');
-      rows.push([`historial`,s.date,esc(m.mesa||''),m.format||'1v1',esc(a),esc(b),m.winner||''].join(','));
-    });
+  csv += '\n##HISTORIAL\nFecha,Partidas_JSON,Clasificacion_JSON\n';
+  sessionHistory.forEach(h => {
+    csv += `${h.session_date},${q(JSON.stringify(h.partidas||[]))},${q(JSON.stringify(h.clasificacion||{}))}\n`;
   });
-
-  downloadCSV(rows.join('\n'), `poolsplitter-partidas-${date}.csv`);
+  dlCSV(csv, `pool-partidas-${fecha||'sesion'}.csv`);
 }
 
-/* ═══════════════════════════════════════════
-   CSV — IMPORTAR (partidas)
-   Importa historial de estadísticas
-═══════════════════════════════════════════ */
-function importCSV(input) {
-  const file=input.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const data=parseCSV(e.target.result);
-    if (!data.length){alert('CSV vacío o formato incorrecto.');return;}
-
-    // Separar sesión actual e historial
-    const histRows   = data.filter(r=>r.seccion==='historial');
-    const sesionRows = data.filter(r=>r.seccion==='sesion_actual');
-
-    if (!histRows.length && !sesionRows.length){
-      alert('No se encontraron filas de tipo "historial" o "sesion_actual".');
-      input.value=''; return;
-    }
-
-    // Agrupar historial por fecha
-    if (histRows.length>0) {
-      const byDate={};
-      histRows.forEach(r=>{
-        if(!byDate[r.fecha]) byDate[r.fecha]=[];
-        byDate[r.fecha].push({
-          mesa:r.mesa, format:r.formato,
-          teamA:(r.equipo_a||'').split(';').filter(Boolean),
-          teamB:(r.equipo_b||'').split(';').filter(Boolean),
-          winner:r.ganador||null
-        });
-      });
-      const existing=JSON.parse(localStorage.getItem('ps-match-history')||'[]');
-      const existingDates=new Set(existing.map(s=>s.date));
-      const toAdd=Object.entries(byDate)
-        .filter(([d])=>!existingDates.has(d))
-        .map(([date,matches])=>({date,sessionId:'imported',matches}));
-      const merged=[...existing,...toAdd].sort((a,b)=>b.date.localeCompare(a.date));
-      localStorage.setItem('ps-match-history',JSON.stringify(merged));
-    }
-
-    // Restaurar partidas de sesión actual
-    if (sesionRows.length>0 && confirm(`¿Restaurar también ${sesionRows.length} partida(s) de la sesión actual? Se borrarán las actuales.`)) {
-      // Limpiar partidas actuales
-      if(!isLocal) Object.keys(matches).forEach(id=>matchesRef.get(id).put({_del:true}));
-      matches={};
-      document.getElementById('matchesList').innerHTML='';
-
-      sesionRows.forEach(r=>{
-        const id='m'+Date.now()+Math.random().toString(36).slice(2,5);
-        const d={
-          mesa:r.mesa, format:r.formato||'1v1',
-          teamA:(r.equipo_a||'').split(';').filter(Boolean)||[''],
-          teamB:(r.equipo_b||'').split(';').filter(Boolean)||[''],
-          winner:r.ganador||null, date:Date.now(), _del:false
-        };
-        if(!d.teamA.length) d.teamA=[''];
-        if(!d.teamB.length) d.teamB=[''];
-        matches[id]=d;
-        renderMatchCard(id,d);
-        if(!isLocal) matchesRef.get(id).put(serializeMatch(d));
-      });
-      if(isLocal) localSave();
-
-      // Fecha del CSV
-      if(sesionRows[0]?.fecha){
-        document.getElementById('sessionDate').value=sesionRows[0].fecha;
-        saveDate();
+async function importCSV(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const lines = e.target.result.split('\n').map(l => l.trimEnd());
+    let sec = '', nMatches = [], nHist = [], fecha = '';
+    for (const line of lines) {
+      if (!line || line.startsWith('#')) { sec = line.replace(/^#+/,'').trim(); continue; }
+      if (line.startsWith('FECHA,')) { fecha = line.split(',')[1]; continue; }
+      if (/^(Mesa|Fecha)/.test(line)) continue;
+      if (sec === 'PARTIDAS') {
+        const [mesa,formato,e1,e2,ganador] = parseCSVLine(line);
+        if (mesa) nMatches.push({ id:uid(), mesa, formato:formato||'1v1',
+          equipo1:(e1||'').split('|').filter(Boolean), equipo2:(e2||'').split('|').filter(Boolean),
+          ganador: ganador ? +ganador : null });
+      } else if (sec === 'HISTORIAL') {
+        const [fd,pj,cj] = parseCSVLine(line);
+        try { nHist.push({ session_date:fd, partidas:JSON.parse(pj), clasificacion:JSON.parse(cj) }); } catch(e){}
       }
     }
-
-    renderLeaderboard();
-    if(document.getElementById('statsPanel').style.display!=='none') renderStats();
+    if (nMatches.length && confirm('¿Restaurar sesión actual con los datos importados?')) {
+      matches = nMatches;
+      if (fecha) document.getElementById('sessionDate').value = fecha;
+    }
+    for (const h of nHist) {
+      const exists = sessionHistory.some(x => x.session_date === h.session_date);
+      if (!exists) {
+        if (sbReady) await sb.from('partidas_sessions').insert({ session_date:h.session_date, partidas:h.partidas, clasificacion:h.clasificacion });
+        else sessionHistory.push(h);
+      }
+    }
+    if (sbReady) await loadHistoryFromDB();
+    else localStorage.setItem('ps-history-partidas', JSON.stringify(sessionHistory));
+    renderAll();
+    if (statsOpen) renderStats();
+    saveLocal();
     alert('✓ CSV importado correctamente.');
   };
   reader.readAsText(file);
-  input.value='';
+  input.value = '';
 }
 
-loadDate();
+// ══════════════════════════════════════════════════════════
+//  LOCAL STORAGE
+// ══════════════════════════════════════════════════════════
+function saveLocal() {
+  localStorage.setItem('ps-partidas', JSON.stringify({ matches, fecha: document.getElementById('sessionDate').value }));
+  pushGun();
+}
+function loadLocal() {
+  try {
+    const d = JSON.parse(localStorage.getItem('ps-partidas') || '{}');
+    matches = d.matches || [];
+    if (d.fecha) document.getElementById('sessionDate').value = d.fecha;
+  } catch(e) {}
+  sessionHistory = JSON.parse(localStorage.getItem('ps-history-partidas') || '[]');
+}
+
+// ══════════════════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════════════════
+let _uidC = 0;
+function uid() { return 'm' + Date.now() + (++_uidC); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function q(s) { return '"' + String(s||'').replace(/"/g,'""') + '"'; }
+function dlCSV(csv, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff'+csv], { type:'text/csv;charset=utf-8;' }));
+  a.download = name; a.click();
+}
+function parseCSVLine(line) {
+  const res = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"' && !inQ) { inQ = true; }
+    else if (c === '"' && inQ && line[i+1] === '"') { cur += '"'; i++; }
+    else if (c === '"' && inQ) { inQ = false; }
+    else if (c === ',' && !inQ) { res.push(cur); cur = ''; }
+    else cur += c;
+  }
+  res.push(cur); return res;
+}
+
+// ══════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════
+async function pingServer() {
+  try {
+    await fetch('https://gun-manhattan.herokuapp.com/gun', {
+      mode: 'no-cors', signal: AbortSignal.timeout(4000)
+    });
+    return true;
+  } catch(e) { return false; }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('sessionDate').value = new Date().toISOString().slice(0,10);
+  initSession();
+  loadLocal();
+  loadGlobalPlayers();
+  document.getElementById('cfgUrl').value = SUPA_URL;
+  document.getElementById('cfgKey').value = SUPA_KEY;
+  initSupabase();
+  renderAll();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+  setMode('live');
+  pingServer().then(ok => {
+    if (!ok) {
+      const goLocal = confirm('⚠ No se pudo conectar al servidor en tiempo real.\n¿Cambiar a modo solo local?');
+      if (goLocal) setMode('local');
+    }
+  });
+  // Secret: 5 clicks on header ball → BD config
+  let _bc = 0, _bt = null;
+  document.querySelector('.ball').style.cursor = 'default';
+  document.querySelector('.ball').addEventListener('click', () => {
+    _bc++; clearTimeout(_bt);
+    if (_bc >= 5) { _bc = 0; openCfg(); }
+    else _bt = setTimeout(() => _bc = 0, 3000);
+  });
+});
+
+// Helper: read global players at render time (always fresh from localStorage)
+function _gp() { return JSON.parse(localStorage.getItem('ps-global-players') || '[]'); }
+
+function loadGlobalPlayers() {
+  const players = _gp();
+  document.getElementById('dlPlayers').innerHTML =
+    players.map(p => `<option value="${String(p.name||'').replace(/"/g,'&quot;')}">`).join('');
+}
+
 </script>
 </body>
 </html>

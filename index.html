@@ -3,1390 +3,936 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PoolSplitter — Sala en directo</title>
+<title>PoolSplitter — Gastos</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b1a35">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PoolSplitter">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 <style>
-  :root {
-    --navy:        #060d1a;
-    --felt:        #0b1a35;
-    --felt-mid:    #102245;
-    --felt-light:  #183060;
-    --blue:        #1d4ed8;
-    --blue-b:      #3b82f6;
-    --cyan:        #38bdf8;
-    --cyan-dim:    #7dd3fc;
-    --silver:      #e2e8f0;
-    --silver-dim:  #94a3b8;
-    --silver-dark: #475569;
-    --white:       #f8fafc;
-    --red:         #ef4444;
-    --green:       #34d399;
-    --amber:       #fbbf24;
-    --shadow:      rgba(0,0,0,0.65);
-  }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--navy);
-    background-image:
-      radial-gradient(ellipse 90% 50% at 50% -5%, rgba(29,78,216,0.22) 0%, transparent 65%),
-      repeating-linear-gradient(0deg,  transparent, transparent 47px, rgba(255,255,255,0.012) 47px, rgba(255,255,255,0.012) 48px),
-      repeating-linear-gradient(90deg, transparent, transparent 47px, rgba(255,255,255,0.012) 47px, rgba(255,255,255,0.012) 48px);
-    min-height: 100vh;
-    font-family: 'Barlow', sans-serif;
-    color: var(--silver);
-    padding: 2rem 1rem 5rem;
-  }
-
-  .container { max-width: 980px; margin: 0 auto; }
-
-  /* ── HEADER ── */
-  header { text-align: center; margin-bottom: 2.5rem; }
-  .header-rule { display: flex; align-items: center; gap: 1rem; justify-content: center; margin-bottom: 0.6rem; }
-  .header-rule span { width: 70px; height: 1px; }
-  .header-rule span:first-child { background: linear-gradient(90deg, transparent, var(--blue-b)); }
-  .header-rule span:last-child  { background: linear-gradient(90deg, var(--blue-b), transparent); }
-  .header-rule .ball { width: 9px; height: 9px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 12px var(--cyan); }
-  header h1 {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: clamp(2.8rem, 9vw, 5.5rem);
-    letter-spacing: 0.1em;
-    color: var(--white);
-    text-transform: uppercase;
-    line-height: 1;
-    text-shadow: 0 0 40px rgba(59,130,246,0.45), 0 4px 24px rgba(0,0,0,0.7);
-  }
-  header h1 span { color: var(--cyan); }
-  header .tagline {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.68rem;
-    color: var(--silver-dim);
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    margin-top: 0.4rem;
-  }
-
-  /* ── SESSION BAR ── */
-  .session-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    background: var(--felt-mid);
-    border: 1px solid rgba(59,130,246,0.2);
-    border-radius: 6px;
-    padding: 0.75rem 1.1rem;
-    margin-bottom: 1.25rem;
-    flex-wrap: wrap;
-  }
-  .live-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--silver-dark);
-    flex-shrink: 0;
-    transition: background 0.3s, box-shadow 0.3s;
-  }
-  .live-dot.on  { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
-  .live-dot.off { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
-  @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.5; } }
-
-  .conn-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.7rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--silver-dim);
-    margin-right: 0.5rem;
-  }
-  .session-id-box {
-    background: var(--navy);
-    border: 1px solid rgba(59,130,246,0.25);
-    border-radius: 4px;
-    padding: 0.3rem 0.75rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.8rem;
-    color: var(--cyan);
-    letter-spacing: 0.12em;
-  }
-  .btn-copy {
-    background: rgba(59,130,246,0.1);
-    border: 1px solid rgba(59,130,246,0.3);
-    border-radius: 4px;
-    color: var(--blue-b);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 0.88rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 0.3rem 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .btn-copy:hover { background: rgba(59,130,246,0.22); color: var(--white); }
-  .btn-copy.copied { color: var(--green); border-color: rgba(52,211,153,0.4); }
-
-  .mode-toggle {
-    display: flex; gap: 0; border-radius: 4px; overflow: hidden;
-    border: 1px solid rgba(59,130,246,0.25); flex-shrink: 0;
-  }
-  .mode-btn {
-    font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 0.3rem 0.7rem; border: none; cursor: pointer;
-    transition: all 0.18s; background: transparent; color: var(--silver-dark);
-  }
-  .mode-btn.active-live  { background: rgba(59,130,246,0.25); color: var(--cyan); }
-  .mode-btn.active-local { background: rgba(251,191,36,0.18); color: var(--amber); }
-  .mode-btn:hover:not(.active-live):not(.active-local) { background: rgba(255,255,255,0.05); color: var(--silver); }
-
-  .session-hint {
-    font-size: 0.75rem; color: var(--silver-dark); margin-left: auto;
-  }
-
-
-
-  /* ── CARD ── */
-  .card {
-    background: var(--felt);
-    border: 1px solid rgba(59,130,246,0.18);
-    border-radius: 6px;
-    padding: 1.5rem 1.75rem;
-    margin-bottom: 1.25rem;
-    box-shadow: 0 10px 36px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.03);
-    position: relative;
-    overflow: hidden;
-  }
-  .card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--blue-b), transparent);
-    opacity: 0.5;
-  }
-  .card-title {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 600;
-    font-size: 0.95rem;
-    letter-spacing: 0.18em;
-    color: var(--cyan);
-    text-transform: uppercase;
-    margin-bottom: 1.25rem;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-  }
-  .card-title::after { content: ''; flex: 1; height: 1px; background: rgba(59,130,246,0.18); }
-  .card-title .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); flex-shrink: 0; }
-
-  /* ── INPUTS ── */
-  label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.62rem;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
-    color: var(--silver-dim);
-    display: block;
-    margin-bottom: 0.28rem;
-  }
-  input[type="number"], input[type="text"], select {
-    background: var(--navy);
-    border: 1px solid rgba(59,130,246,0.22);
-    border-radius: 4px;
-    color: var(--white);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.88rem;
-    padding: 0.48rem 0.7rem;
-    width: 100%;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    -webkit-appearance: none;
-  }
-  select { cursor: pointer; }
-  input:focus, select:focus { border-color: var(--blue-b); box-shadow: 0 0 0 2px rgba(59,130,246,0.18); }
-  input::placeholder { color: var(--silver-dark); }
-  input[type="number"]::-webkit-inner-spin-button { opacity: 0.3; }
-
-  .info-pill {
-    background: rgba(56,189,248,0.08);
-    border: 1px solid rgba(56,189,248,0.22);
-    border-radius: 4px;
-    padding: 0.48rem 0.7rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.88rem;
-    color: var(--cyan);
-    min-height: 2.25rem;
-    display: flex;
-    align-items: center;
-  }
-
-  /* ── TABLES LIST ── */
-  #tablesList { display: flex; flex-direction: column; gap: 0.65rem; }
-
-  .table-row {
-    display: grid;
-    grid-template-columns: 1fr 100px 100px 100px 34px;
-    gap: 0.55rem;
-    align-items: end;
-    background: var(--felt-mid);
-    border: 1px solid rgba(59,130,246,0.12);
-    border-radius: 5px;
-    padding: 0.8rem 0.9rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    animation: rowIn 0.22s ease;
-  }
-  .table-row:hover { border-color: rgba(59,130,246,0.28); }
-  @keyframes rowIn { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
-
-  .cost-val {
-    background: rgba(56,189,248,0.07);
-    border: 1px solid rgba(56,189,248,0.18);
-    border-radius: 4px;
-    padding: 0.48rem 0.7rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85rem;
-    color: var(--cyan);
-    min-height: 2.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-  }
-
-  .btn-remove {
-    background: rgba(239,68,68,0.1);
-    border: 1px solid rgba(239,68,68,0.22);
-    border-radius: 4px;
-    color: #f87171;
-    font-size: 1.1rem;
-    width: 34px; height: 34px;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    line-height: 1;
-  }
-  .btn-remove:hover { background: rgba(239,68,68,0.25); border-color: var(--red); color: var(--white); }
-
-  .btn-add-table {
-    background: rgba(59,130,246,0.07);
-    border: 1px dashed rgba(59,130,246,0.32);
-    border-radius: 5px;
-    padding: 0.6rem 1.2rem;
-    color: var(--blue-b);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 0.92rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.2s;
-    width: 100%;
-    margin-top: 0.2rem;
-  }
-  .btn-add-table:hover { background: rgba(59,130,246,0.16); border-color: var(--blue-b); color: var(--white); }
-
-  .formula-box {
-    margin-top: 1.1rem;
-    background: rgba(56,189,248,0.04);
-    border: 1px solid rgba(56,189,248,0.13);
-    border-radius: 4px;
-    padding: 0.65rem 1rem;
-    font-size: 0.77rem;
-    color: var(--silver-dim);
-    line-height: 1.7;
-  }
-  .formula-box code { font-family: 'JetBrains Mono', monospace; color: var(--cyan-dim); font-size: 0.73rem; }
-
-  /* ── PLAYERS TABLE ── */
-  .players-table { width: 100%; border-collapse: collapse; }
-  .players-table thead th {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.6rem;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--silver-dim);
-    font-weight: 400;
-    padding: 0 0.45rem 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid rgba(59,130,246,0.14);
-  }
-  .players-table thead th.right  { text-align: right; }
-  .players-table thead th.center { text-align: center; }
-  .players-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.035); transition: background 0.15s; }
-  .players-table tbody tr:hover { background: rgba(59,130,246,0.04); }
-  .players-table tbody tr.flash-row { animation: flashUpdate 0.6s ease; }
-  @keyframes flashUpdate { 0%,100%{ background:transparent; } 30%{ background:rgba(56,189,248,0.1); } }
-  .players-table td { padding: 0.35rem 0.45rem; vertical-align: middle; }
-
-  .player-num {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 1rem;
-    color: rgba(59,130,246,0.32);
-    width: 24px;
-    text-align: center;
-    padding-left: 0;
-  }
-  .players-table input[type="text"] {
-    background: transparent; border-color: rgba(59,130,246,0.1);
-    padding: 0.32rem 0.52rem; font-family:'Barlow',sans-serif; font-size:0.87rem;
-  }
-  .players-table input[type="number"] {
-    background: transparent; border-color: rgba(59,130,246,0.1);
-    padding: 0.32rem 0.52rem; font-size: 0.87rem; width: 80px;
-  }
-  .players-table select {
-    background: transparent; border-color: rgba(59,130,246,0.1);
-    padding: 0.32rem 0.52rem; font-size: 0.83rem; width: 120px;
-    color: var(--silver-dim);
-  }
-  .players-table select#pmins, .players-table select[id^="pmins"] {
-    width: 100px;
-    color: var(--silver);
-  }
-  .players-table select.selected { color: var(--cyan-dim); }
-  .players-table input:focus, .players-table select:focus {
-    background: var(--navy) !important; border-color: var(--blue-b) !important;
-  }
-
-  .pct-cell {
-    text-align: center;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.76rem;
-    color: var(--cyan-dim);
-    width: 80px;
-  }
-  .bar-track {
-    width: 48px; height: 3px;
-    background: rgba(255,255,255,0.07);
-    border-radius: 2px;
-    overflow: hidden;
-    display: inline-block;
-    vertical-align: middle;
-    margin-left: 4px;
-  }
-  .bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--blue-b), var(--cyan));
-    border-radius: 2px;
-    transition: width 0.4s ease;
-  }
-  .result-cell { text-align: right; min-width: 95px; }
-  .result-amount { font-family:'JetBrains Mono',monospace; font-size:0.95rem; color:var(--cyan); font-weight:500; }
-  .result-mins   { font-family:'JetBrains Mono',monospace; font-size:0.63rem; color:var(--silver-dark); }
-  .result-empty  { color:rgba(255,255,255,0.11); font-size:0.8rem; }
-
-  /* ── TOTALS ── */
-  .totals-bar {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-    gap: 1px;
-    background: rgba(59,130,246,0.14);
-    border: 1px solid rgba(59,130,246,0.22);
-    border-radius: 6px;
-    overflow: hidden;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 8px 30px var(--shadow);
-  }
-  .total-item { background:var(--felt-mid); padding:1rem 1.3rem; display:flex; flex-direction:column; gap:0.18rem; }
-  .total-label { font-family:'JetBrains Mono',monospace; font-size:0.6rem; letter-spacing:0.13em; text-transform:uppercase; color:var(--silver-dim); }
-  .total-value { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:1.9rem; line-height:1; color:var(--cyan); letter-spacing:0.02em; }
-  .total-value.warn { color:var(--red); }
-  .total-value.ok   { color:var(--green); }
-  .total-value.dim  { color:var(--silver); }
-  .total-sub { font-family:'JetBrains Mono',monospace; font-size:0.63rem; color:var(--silver-dark); margin-top:2px; }
-
-  /* ── MESA HEADER ROW ── */
-  .mesa-header-row td {
-    padding: 0.9rem 0.45rem 0.3rem;
-    display: flex; align-items: baseline; gap: 0.6rem;
-  }
-  .mesa-tag {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 600; font-size: 0.8rem;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--cyan); background: rgba(56,189,248,0.1);
-    border: 1px solid rgba(56,189,248,0.25);
-    border-radius: 3px; padding: 0.1rem 0.5rem;
-  }
-  .mesa-tag-sub {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.66rem; color: var(--silver-dark);
-  }
-
-  /* ── SUMMARY CARD ── */
-  .summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 0.75rem;
-  }
-  .summary-player {
-    background: var(--felt-mid);
-    border: 1px solid rgba(59,130,246,0.18);
-    border-radius: 5px;
-    padding: 0.9rem 1rem;
-    display: flex; flex-direction: column; gap: 0.25rem;
-    transition: border-color 0.2s;
-  }
-  .summary-player:hover { border-color: rgba(56,189,248,0.4); }
-  .summary-name {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 600; font-size: 1.05rem;
-    letter-spacing: 0.06em; color: var(--silver);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .summary-amount {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.55rem; font-weight: 500;
-    color: var(--cyan); line-height: 1.1;
-  }
-  .summary-detail {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.65rem; color: var(--silver-dark);
-    line-height: 1.5; margin-top: 0.1rem;
-  }
-  .summary-empty {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem; color: var(--silver-dark);
-    text-align: center; padding: 0.5rem;
-    grid-column: 1/-1;
-  }
-
-  /* ── PLAYER CARDS ── */
-  #playerCards { display: flex; flex-direction: column; gap: 0.55rem; }
-
-  .player-card {
-    background: var(--felt-mid);
-    border: 1px solid rgba(59,130,246,0.14);
-    border-radius: 5px;
-    padding: 0.7rem 0.9rem;
-    transition: border-color 0.2s;
-  }
-  .player-card:hover { border-color: rgba(59,130,246,0.3); }
-  .player-card.flash-row { animation: flashUpdate 0.5s ease; }
-
-  .player-header {
-    display: flex; align-items: center; gap: 0.55rem;
-    margin-bottom: 0.45rem;
-  }
-  .pnum {
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-    font-size: 1rem; color: rgba(59,130,246,0.32);
-    width: 20px; text-align: center; flex-shrink: 0;
-  }
-  .player-header input[type="text"] {
-    flex: 1; background: var(--navy);
-    border-color: rgba(59,130,246,0.2);
-    padding: 0.35rem 0.6rem;
-    font-family: 'Barlow', sans-serif; font-size: 0.9rem;
-  }
-  .player-total {
-    font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;
-    color: var(--silver-dark); min-width: 68px; text-align: right; flex-shrink: 0;
-  }
-  .player-total.has-value { color: var(--cyan); font-size: 1rem; font-weight: 500; }
-
-  .pmrows { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.38rem; }
-  .pmrow  { display: flex; gap: 0.4rem; align-items: center; }
-  .pmrow select {
-    background: var(--navy); border-color: rgba(59,130,246,0.14);
-    padding: 0.3rem 0.5rem; font-size: 0.82rem;
-  }
-  .pmrow select:first-child { flex: 1; }
-  .pmrow select:nth-child(2) { width: 98px; flex-shrink: 0; }
-
-  .btn-remove-row {
-    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
-    border-radius: 3px; color: #f87171; font-size: 1rem;
-    width: 27px; height: 27px; display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: all 0.18s; flex-shrink: 0; line-height: 1;
-  }
-  .btn-remove-row:hover { background: rgba(239,68,68,0.22); color: var(--white); }
-
-  .btn-add-mesa-row {
-    background: rgba(59,130,246,0.06); border: 1px dashed rgba(59,130,246,0.24);
-    border-radius: 3px; color: var(--blue-b);
-    font-family: 'Barlow Condensed', sans-serif; font-size: 0.8rem;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 0.26rem 0.65rem; cursor: pointer; transition: all 0.18s; width: 100%;
-  }
-  .btn-add-mesa-row:hover { background: rgba(59,130,246,0.14); color: var(--white); }
-
-  /* ── ACTIONS ── */
-  .actions { display:flex; gap:0.7rem; flex-wrap:wrap; justify-content:flex-end; }
-  button.btn-primary, button.btn-ghost {
-    font-family:'Barlow Condensed',sans-serif; font-weight:600;
-    letter-spacing:0.13em; font-size:0.98rem; text-transform:uppercase;
-    padding:0.58rem 1.6rem; border-radius:4px; cursor:pointer; transition:all 0.2s;
-  }
-  .btn-primary { background:var(--blue); border:1px solid var(--blue-b); color:var(--white); box-shadow:0 0 18px rgba(29,78,216,0.38); }
-  .btn-primary:hover { background:var(--blue-b); transform:translateY(-1px); box-shadow:0 4px 18px rgba(59,130,246,0.45); }
-  .btn-ghost { background:transparent; border:1px solid rgba(255,255,255,0.11); color:var(--silver-dim); }
-  .btn-ghost:hover { border-color:rgba(255,255,255,0.28); color:var(--silver); }
-
-  @media (max-width:640px) {
-    .card { padding:1rem; }
-    .table-row { grid-template-columns:1fr 1fr; grid-template-rows:auto auto auto; }
-    .table-row > div:first-child { grid-column:1/-1; }
-    .bar-track { display:none; }
-    .players-table select { width:95px; }
-    .players-table input[type="number"] { width:66px; }
-    .session-hint { display:none; }
-  }
+:root{--navy:#060d1a;--felt:#0b1a35;--felt-mid:#102245;--blue:#1d4ed8;--blue-b:#3b82f6;--cyan:#38bdf8;--cyan-dim:#7dd3fc;--silver:#e2e8f0;--silver-dim:#94a3b8;--silver-dark:#475569;--white:#f8fafc;--red:#ef4444;--green:#34d399;--amber:#fbbf24;--shadow:rgba(0,0,0,.65)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background-color:#060d1a;background-image:radial-gradient(ellipse 90% 50% at 50% -5%,rgba(29,78,216,.22) 0%,transparent 65%),repeating-linear-gradient(0deg,transparent,transparent 47px,rgba(255,255,255,.012) 47px,rgba(255,255,255,.012) 48px),repeating-linear-gradient(90deg,transparent,transparent 47px,rgba(255,255,255,.012) 47px,rgba(255,255,255,.012) 48px);min-height:100vh;font-family:'Barlow',sans-serif;color:var(--silver);padding:2rem 1rem 5rem}
+.container{max-width:960px;margin:0 auto}
+header{text-align:center;margin-bottom:2rem}
+.header-rule{display:flex;align-items:center;gap:1rem;justify-content:center;margin-bottom:.6rem}
+.header-rule span{width:70px;height:1px}
+.header-rule span:first-child{background:linear-gradient(90deg,transparent,var(--blue-b))}
+.header-rule span:last-child{background:linear-gradient(90deg,var(--blue-b),transparent)}
+.header-rule .ball{width:9px;height:9px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+header h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(2.8rem,9vw,5.5rem);letter-spacing:.1em;color:var(--white);text-transform:uppercase;line-height:1;text-shadow:0 0 40px rgba(59,130,246,.45),0 4px 24px rgba(0,0,0,.7)}
+header h1 span{color:var(--cyan)}
+header .tagline{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--silver-dim);letter-spacing:.2em;text-transform:uppercase;margin-top:.4rem}
+.session-bar{display:flex;align-items:center;gap:.75rem;background:var(--felt-mid);border:1px solid rgba(59,130,246,.2);border-radius:6px;padding:.7rem 1.1rem;margin-bottom:1.1rem;flex-wrap:wrap}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--silver-dark);flex-shrink:0;transition:background .3s,box-shadow .3s}
+.live-dot.on{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+.live-dot.off{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.conn-label{font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--silver-dim);margin-right:.5rem}
+.session-id-box{background:var(--navy);border:1px solid rgba(59,130,246,.25);border-radius:4px;padding:.3rem .75rem;font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--cyan);letter-spacing:.12em}
+.btn-copy{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:4px;color:var(--blue-b);font-family:'Barlow Condensed',sans-serif;font-size:.88rem;letter-spacing:.1em;text-transform:uppercase;padding:.3rem .9rem;cursor:pointer;transition:all .2s}
+.btn-copy:hover{background:rgba(59,130,246,.22);color:var(--white)}
+.btn-copy.copied{color:var(--green);border-color:rgba(52,211,153,.4)}
+.mode-toggle{display:flex;border-radius:4px;overflow:hidden;border:1px solid rgba(59,130,246,.25);flex-shrink:0}
+.mode-btn{font-family:'JetBrains Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;padding:.3rem .7rem;border:none;cursor:pointer;transition:all .18s;background:transparent;color:var(--silver-dark)}
+.mode-btn.active-live{background:rgba(59,130,246,.25);color:var(--cyan)}
+.mode-btn.active-local{background:rgba(251,191,36,.18);color:var(--amber)}
+.mode-btn:hover:not(.active-live):not(.active-local){background:rgba(255,255,255,.05);color:var(--silver)}
+.nav-link{display:inline-flex;align-items:center;gap:.4rem;font-family:'Barlow Condensed',sans-serif;font-size:.9rem;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan-dim);padding:.35rem 1rem;border:1px solid rgba(56,189,248,.25);border-radius:4px;text-decoration:none;transition:all .2s}
+.nav-link:hover{color:var(--white);border-color:var(--cyan)}
+.db-strip{display:flex;align-items:center;gap:.6rem;padding:.5rem .9rem;background:var(--felt-mid);border:1px solid rgba(59,130,246,.14);border-radius:5px;margin-bottom:1.1rem;flex-wrap:wrap}
+.db-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.db-dot.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
+.db-dot.err{background:var(--red);box-shadow:0 0 6px var(--red)}
+.db-dot.off{background:var(--silver-dark)}
+.db-label{font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--silver-dim)}
+/* Admin config - hidden */
+.cfg-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center}
+.cfg-overlay.open{display:flex}
+.cfg-modal{background:var(--felt);border:1px solid rgba(251,191,36,.35);border-radius:8px;padding:1.5rem;width:min(480px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.8)}
+.cfg-modal h3{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;letter-spacing:.15em;text-transform:uppercase;color:var(--amber);margin-bottom:1rem}
+.cfg-grid{display:grid;gap:.7rem;margin-bottom:1rem}
+.cfg-hint{font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--silver-dark);margin-top:.5rem}
+.card{background:var(--felt);border:1px solid rgba(59,130,246,.18);border-radius:6px;padding:1.4rem 1.6rem;margin-bottom:1.1rem;box-shadow:0 10px 36px var(--shadow),inset 0 1px 0 rgba(255,255,255,.03);position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--blue-b),transparent);opacity:.5}
+.card-title{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:.95rem;letter-spacing:.18em;color:var(--cyan);text-transform:uppercase;margin-bottom:1.1rem;display:flex;align-items:center;gap:.6rem}
+.card-title::after{content:'';flex:1;height:1px;background:rgba(59,130,246,.18)}
+.card-title .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);flex-shrink:0}
+label{font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.13em;text-transform:uppercase;color:var(--silver-dim);display:block;margin-bottom:.28rem}
+input[type="text"],input[type="date"],select{background:var(--navy);border:1px solid rgba(59,130,246,.22);border-radius:4px;color:var(--white);font-family:'JetBrains Mono',monospace;font-size:.88rem;padding:.48rem .7rem;width:100%;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none}
+select{cursor:pointer}
+input:focus,select:focus{border-color:var(--blue-b);box-shadow:0 0 0 2px rgba(59,130,246,.18)}
+input::placeholder{color:var(--silver-dark)}
+.btn-primary{background:var(--blue);border:1px solid var(--blue-b);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.13em;font-size:.98rem;text-transform:uppercase;padding:.55rem 1.5rem;border-radius:4px;cursor:pointer;transition:all .2s;box-shadow:0 0 18px rgba(29,78,216,.35)}
+.btn-primary:hover{background:var(--blue-b);transform:translateY(-1px)}
+.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.11);color:var(--silver-dim);font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.13em;font-size:.95rem;text-transform:uppercase;padding:.5rem 1.3rem;border-radius:4px;cursor:pointer;transition:all .2s}
+.btn-ghost:hover{border-color:rgba(255,255,255,.28);color:var(--silver)}
+.btn-remove{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.22);border-radius:4px;color:#f87171;font-size:1rem;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;line-height:1;flex-shrink:0}
+.btn-remove:hover{background:rgba(239,68,68,.25);color:var(--white)}
+.btn-add{background:rgba(59,130,246,.07);border:1px dashed rgba(59,130,246,.32);border-radius:5px;padding:.55rem 1.2rem;color:var(--blue-b);font-family:'Barlow Condensed',sans-serif;font-size:.9rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;width:100%;margin-top:.4rem}
+.btn-add:hover{background:rgba(59,130,246,.16);border-color:var(--blue-b);color:var(--white)}
+.btn-add-sm{background:rgba(59,130,246,.07);border:1px dashed rgba(59,130,246,.28);border-radius:4px;padding:.28rem .7rem;color:var(--blue-b);font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.btn-add-sm:hover{background:rgba(59,130,246,.18);color:var(--white)}
+.actions{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+/* PLANTILLAS */
+.template-list{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem;min-height:2rem}
+.template-chip{display:inline-flex;align-items:center;gap:.3rem;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);border-radius:20px;padding:.25rem .6rem .25rem .8rem;font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--cyan-dim)}
+.template-chip button{background:none;border:none;color:var(--silver-dark);cursor:pointer;font-size:.85rem;line-height:1;padding:0;transition:color .15s}
+.template-chip button:hover{color:var(--red)}
+.template-add-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.template-add-row input,.template-add-row select{width:auto;flex:1;min-width:100px;padding:.35rem .6rem;font-size:.82rem}
+/* MESAS */
+.mesa-row{background:var(--felt-mid);border:1px solid rgba(59,130,246,.12);border-radius:5px;padding:.8rem .9rem;margin-bottom:.6rem;display:flex;flex-direction:column;gap:.55rem}
+.mesa-row:hover{border-color:rgba(59,130,246,.28)}
+.mesa-top{display:grid;grid-template-columns:1fr 70px 32px;gap:.55rem;align-items:end}
+.mesa-times{display:grid;grid-template-columns:1fr 1fr auto;gap:.55rem;align-items:end}
+.mins-display{background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.18);border-radius:4px;padding:.45rem .7rem;font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--cyan);white-space:nowrap}
+input[type="time"]{background:var(--navy);border:1px solid rgba(59,130,246,.22);border-radius:4px;color:var(--white);font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.45rem .6rem;width:100%;outline:none;transition:border-color .2s}
+input[type="time"]:focus{border-color:var(--blue-b);box-shadow:0 0 0 2px rgba(59,130,246,.18)}
+/* JUGADORES */
+.player-card{background:var(--felt-mid);border:1px solid rgba(59,130,246,.14);border-radius:5px;padding:.8rem .9rem;margin-bottom:.6rem;transition:border-color .2s}
+.player-card:hover{border-color:rgba(59,130,246,.3)}
+.player-header{display:flex;align-items:center;gap:.55rem;margin-bottom:.5rem}
+.pnum{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1rem;color:rgba(59,130,246,.32);width:20px;text-align:center;flex-shrink:0}
+.player-header input[type="text"]{flex:1;background:var(--navy);border-color:rgba(59,130,246,.2);padding:.35rem .6rem;font-family:'Barlow',sans-serif;font-size:.9rem}
+.player-total{font-family:'JetBrains Mono',monospace;font-size:.82rem;color:var(--silver-dark);min-width:68px;text-align:right;flex-shrink:0}
+.player-total.has-value{color:var(--cyan);font-size:1rem;font-weight:500}
+.pmrows{display:flex;flex-direction:column;gap:.5rem;margin-bottom:.38rem}
+.pmrow{display:flex;flex-direction:column;gap:.3rem;background:rgba(0,0,0,.15);border-radius:4px;padding:.45rem .5rem}
+.pmrow-top{display:flex;gap:.4rem;align-items:center}
+.pmrow-top select{flex:1;background:var(--navy);border:1px solid rgba(59,130,246,.14);border-radius:4px;color:var(--white);font-family:'JetBrains Mono',monospace;font-size:.82rem;padding:.3rem .5rem}
+.pmrow-times{display:grid;grid-template-columns:1fr 1fr auto;gap:.4rem;align-items:center}
+.pmrow-times input[type="time"]{font-size:.78rem;padding:.3rem .5rem}
+.pmrow-mins{font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--cyan);background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.15);border-radius:4px;padding:.3rem .55rem;white-space:nowrap;text-align:center}
+.btn-remove-row{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:3px;color:#f87171;font-size:1rem;width:27px;height:27px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;flex-shrink:0;line-height:1}
+.btn-remove-row:hover{background:rgba(239,68,68,.22);color:var(--white)}
+/* TOTALS */
+.totals-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.22);border-radius:6px;overflow:hidden;margin-bottom:1.1rem;box-shadow:0 8px 30px var(--shadow)}
+.total-item{background:var(--felt-mid);padding:.9rem 1.2rem;display:flex;flex-direction:column;gap:.15rem}
+.total-label{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.13em;text-transform:uppercase;color:var(--silver-dim)}
+.total-value{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.8rem;line-height:1;color:var(--cyan);letter-spacing:.02em}
+.total-value.warn{color:var(--red)}
+.total-value.ok{color:var(--green)}
+/* SUMMARY */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem}
+.summary-player{background:var(--felt-mid);border:1px solid rgba(59,130,246,.18);border-radius:5px;padding:.9rem 1rem;display:flex;flex-direction:column;gap:.22rem;transition:border-color .2s}
+.summary-player:hover{border-color:rgba(56,189,248,.4)}
+.summary-name{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:1.05rem;letter-spacing:.06em;color:var(--silver);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.summary-amount{font-family:'JetBrains Mono',monospace;font-size:1.5rem;font-weight:500;color:var(--cyan);line-height:1.1}
+.summary-detail{font-family:'JetBrains Mono',monospace;font-size:.63rem;color:var(--silver-dark);line-height:1.5;margin-top:.1rem}
+.summary-empty{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--silver-dark);text-align:center;padding:.5rem;grid-column:1/-1}
+/* HISTORY */
+.history-session{background:var(--felt-mid);border:1px solid rgba(59,130,246,.14);border-radius:5px;padding:.8rem 1rem;margin-bottom:.6rem;cursor:pointer;transition:border-color .2s}
+.history-session:hover{border-color:rgba(59,130,246,.35)}
+.history-session-header{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.history-date{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1rem;color:var(--cyan);letter-spacing:.06em}
+.history-meta{font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--silver-dark);flex:1}
+.history-del{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:3px;color:#f87171;font-size:.72rem;padding:.15rem .45rem;cursor:pointer;flex-shrink:0}
+.history-detail{display:none;margin-top:.7rem;font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--silver-dim);line-height:1.7;border-top:1px solid rgba(59,130,246,.1);padding-top:.6rem}
+.history-detail.open{display:block}
+.empty-state{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--silver-dark);text-align:center;padding:1.2rem .5rem}
+@media(max-width:600px){.card{padding:1rem}.mesa-row{grid-template-columns:1fr 70px 80px 32px}}
 </style>
 </head>
 <body>
 <div class="container">
 
-  <header>
-    <div class="header-rule"><span></span><div class="ball"></div><span></span></div>
-    <h1>Pool<span>Splitter</span></h1>
-    <p class="tagline">// sala en directo — tiempo real //</p>
-  </header>
-
-  <!-- DATE + NAV BAR -->
-  <div class="session-bar" style="justify-content:space-between;flex-wrap:wrap;gap:.6rem;">
-    <div style="display:flex;align-items:center;gap:.6rem;">
-      <label style="font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--silver-dim);margin:0">Fecha de juego</label>
-      <input type="date" id="sessionDate" style="background:var(--navy);border:1px solid rgba(59,130,246,.25);border-radius:4px;color:var(--white);font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.35rem .6rem;outline:none;" oninput="saveDate()">
+<!-- ADMIN CONFIG MODAL (hidden, Ctrl+Shift+K) -->
+<div class="cfg-overlay" id="cfgOverlay" onclick="if(event.target===this)closeCfg()">
+  <div class="cfg-modal">
+    <h3>⚙ Configuración de base de datos</h3>
+    <div class="cfg-grid">
+      <div>
+        <label>Project URL</label>
+        <input type="text" id="cfgUrl" placeholder="https://xxxx.supabase.co" oninput="saveCfg()">
+      </div>
+      <div>
+        <label>Anon Key</label>
+        <input type="text" id="cfgKey" placeholder="eyJ…" oninput="saveCfg()">
+      </div>
     </div>
-    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
-      <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem;" onclick="saveSession()">💾 Guardar sesión</button>
-      <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem;" onclick="toggleHistory()">📋 Historial</button>
-      <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem;" onclick="exportCSV()">⬇ Exportar CSV</button>
-      <label class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem;cursor:pointer;">⬆ Importar CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(this)"></label>
-      <a href="partidas.html#<%= sessionId %>" id="linkPartidas" style="font-family:'Barlow Condensed',sans-serif;font-size:.88rem;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan-dim);padding:.35rem 1rem;border:1px solid rgba(56,189,248,.25);border-radius:4px;text-decoration:none;transition:all .2s;" onmouseover="this.style.color='var(--white)'" onmouseout="this.style.color='var(--cyan-dim)'">🎱 Partidas →</a>
+    <div style="display:flex;gap:.6rem;justify-content:flex-end">
+      <button class="btn-ghost" onclick="closeCfg()">Cerrar</button>
+      <button class="btn-primary" onclick="applyConfig()">Conectar</button>
     </div>
+    <p class="cfg-hint">Acceso: Ctrl+Shift+K</p>
   </div>
-
-  <!-- HISTORY PANEL -->
-  <div id="historyPanel" style="display:none;" class="card">
-    <div class="card-title"><div class="dot"></div>Historial de sesiones</div>
-    <div id="historyList"></div>
-  </div>
-
-  <!-- SESSION BAR -->
-  <div class="session-bar">
-    <div class="live-dot" id="liveDot"></div>
-    <span class="conn-label" id="connLabel">Conectando…</span>
-    <div class="mode-toggle">
-      <button class="mode-btn" id="btnLive"  onclick="setMode('live')">En directo</button>
-      <button class="mode-btn" id="btnLocal" onclick="setMode('local')">Solo local</button>
-    </div>
-    <div class="session-id-box" id="sessionIdBox">—</div>
-    <button class="btn-copy" id="btnCopy" onclick="copyLink()">Copiar enlace</button>
-    <span class="session-hint" id="sessionHint">Comparte el enlace con los jugadores</span>
-  </div>
-
-  <!-- SUMMARY BY PLAYER (first) -->
-  <div class="card">
-    <div class="card-title"><div class="dot"></div>Resumen — Total por jugador</div>
-    <div class="summary-grid" id="summaryGrid">
-      <div class="summary-empty">Introduce jugadores y mesas para ver el resumen</div>
-    </div>
-  </div>
-
-  <!-- TABLES -->
-  <div class="card">
-    <div class="card-title"><div class="dot"></div>Mesas de la sesión</div>
-    <div id="tablesList"></div>
-    <button class="btn-add-table" onclick="addTable()">+ Añadir mesa</button>
-    <div class="formula-box">
-      <strong style="color:var(--cyan-dim)">Reparto por mesa:</strong>
-      cada mesa se divide <strong style="color:var(--silver)">solo</strong> entre los jugadores que la usaron, proporcional a sus minutos.<br>
-      <code>pago = (tus_minutos ÷ Σ minutos_de_tu_mesa) × coste_de_tu_mesa</code>
-    </div>
-  </div>
-
-  <!-- PLAYERS -->
-  <div class="card">
-    <div class="card-title"><div class="dot"></div>Jugadores</div>
-    <div id="playerCards"></div>
-  </div>
-
-  <!-- TOTALS -->
-  <div class="totals-bar">
-    <div class="total-item">
-      <span class="total-label">Coste total sesión</span>
-      <span class="total-value" id="totCosto">—</span>
-      <span class="total-sub"  id="totCostoSub"></span>
-    </div>
-    <div class="total-item">
-      <span class="total-label">Mesas activas</span>
-      <span class="total-value dim" id="totMesas">0</span>
-      <span class="total-sub"      id="totMesasSub"></span>
-    </div>
-    <div class="total-item">
-      <span class="total-label">Min. registrados</span>
-      <span class="total-value ok" id="totJugados">0</span>
-      <span class="total-sub"     id="totDiff"></span>
-    </div>
-    <div class="total-item">
-      <span class="total-label">Total cobrado</span>
-      <span class="total-value" id="totCobrado">—</span>
-      <span class="total-sub"   id="totRestante"></span>
-    </div>
-  </div>
-
-  <div class="actions">
-    <button class="btn-ghost" onclick="clearAll()">Limpiar todo</button>
-    <button class="btn-primary" onclick="recalculate()">Recalcular</button>
-  </div>
-
 </div>
 
-<!-- Gun.js -->
-<script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+<datalist id="dlPlayers"></datalist>
+<datalist id="dlTables"></datalist>
+
+<header>
+  <div class="header-rule"><span></span><div class="ball"></div><span></span></div>
+  <h1>POOL<span>SPLITTER</span></h1>
+  <p class="tagline">// repartidor de gastos · mesas de billar //</p>
+</header>
+
+<!-- DB STATUS -->
+<div style="display:none" id="dbDot" data-state="off"></div>
+<span style="display:none" id="dbLabel"></span>
+
+<!-- SESSION BAR -->
+<div class="session-bar">
+  <div class="live-dot" id="liveDot"></div>
+  <span class="conn-label" id="connLabel">Solo local</span>
+  <div class="mode-toggle">
+    <button class="mode-btn active-local" id="btnLocal" onclick="setMode('local')">Solo local</button>
+    <button class="mode-btn" id="btnLive" onclick="setMode('live')">En directo</button>
+  </div>
+  <div class="session-id-box" id="sessionIdBox">—</div>
+  <button class="btn-copy" id="btnCopy" onclick="copyLink()">Copiar enlace</button>
+  <a class="nav-link" id="linkPartidas" href="partidas.html">Partidas →</a>
+</div>
+
+<!-- DATE + ACTIONS -->
+<div class="session-bar" style="justify-content:space-between;flex-wrap:wrap;gap:.6rem">
+  <div style="display:flex;align-items:center;gap:.6rem">
+    <label style="margin:0;font-size:.65rem">Fecha de juego</label>
+    <input type="date" id="sessionDate" style="background:var(--navy);border:1px solid rgba(59,130,246,.25);border-radius:4px;color:var(--white);font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.35rem .6rem;outline:none;width:auto" onchange="saveLocal()">
+  </div>
+  <div class="actions">
+    <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="saveSession()">💾 Guardar sesión</button>
+    <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="toggleHistory()">📚 Historial</button>
+    <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="exportCSV()">⬇ Exportar CSV</button>
+    <label class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem;cursor:pointer">⬆ Importar CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(this)"></label>
+  </div>
+</div>
+
+<!-- PLANTILLA JUGADORES -->
+<div class="card">
+  <div class="card-title"><div class="dot"></div>Plantilla de jugadores</div>
+  <div class="template-list" id="playerTemplateList"></div>
+  <div class="template-add-row">
+    <input type="text" id="newPlayerName" placeholder="Nombre del jugador" onkeydown="if(event.key==='Enter')addGlobalPlayer()">
+    <button class="btn-ghost" style="font-size:.85rem;padding:.35rem 1rem;white-space:nowrap" onclick="addGlobalPlayer()">+ Añadir</button>
+  </div>
+</div>
+
+<!-- PLANTILLA MESAS -->
+<div class="card">
+  <div class="card-title"><div class="dot"></div>Plantilla de mesas</div>
+  <div class="template-list" id="tableTemplateList"></div>
+  <div class="template-add-row">
+    <input type="text" id="newTableName" placeholder="Nombre de la mesa" onkeydown="if(event.key==='Enter')addGlobalTable()">
+    <select id="newTablePrice" style="max-width:90px">
+      <script>for(let p=0;p<=100;p++) document.write(`<option value="${p}"${p===10?' selected':''}>${p}€/h</option>`)</script>
+    </select>
+    <button class="btn-ghost" style="font-size:.85rem;padding:.35rem 1rem;white-space:nowrap" onclick="addGlobalTable()">+ Añadir</button>
+  </div>
+</div>
+
+<!-- TOTALS -->
+<div class="totals-bar">
+  <div class="total-item"><div class="total-label">Mesas</div><div class="total-value" id="totMesas">0</div></div>
+  <div class="total-item"><div class="total-label">Total a repartir</div><div class="total-value" id="totImporte">0.00€</div></div>
+  <div class="total-item"><div class="total-label">Jugadores</div><div class="total-value" id="totJugadores">0</div></div>
+  <div class="total-item"><div class="total-label">Diferencia</div><div class="total-value ok" id="totDiff">0.00€</div></div>
+</div>
+
+<!-- MESAS DE SESIÓN -->
+<div class="card">
+  <div class="card-title"><div class="dot"></div>Mesas de la sesión</div>
+  <div id="tablesList"></div>
+  <div style="display:flex;gap:.5rem;margin-top:.4rem;flex-wrap:wrap">
+    <button class="btn-add" style="flex:1;min-width:140px" onclick="addMesa()">+ Mesa nueva</button>
+    <button class="btn-add" style="flex:1;min-width:140px" id="btnFromTemplate" onclick="addMesaFromTemplate()" style="display:none">+ Desde plantilla</button>
+  </div>
+</div>
+
+<!-- JUGADORES DE SESIÓN -->
+<div class="card">
+  <div class="card-title"><div class="dot"></div>Jugadores</div>
+  <div id="playerCards"></div>
+  <div style="display:flex;gap:.5rem;margin-top:.4rem;flex-wrap:wrap">
+    <button class="btn-add" style="flex:1;min-width:140px" id="addPlayerBtn" onclick="addJugador()">+ Jugador nuevo</button>
+    <button class="btn-add" style="flex:1;min-width:140px" id="btnPlayerFromTemplate" onclick="addJugadorFromTemplate()">+ Desde plantilla</button>
+  </div>
+</div>
+
+<!-- RESUMEN -->
+<div class="card">
+  <div class="card-title"><div class="dot"></div>Resumen de pagos</div>
+  <div class="summary-grid" id="summaryGrid"><div class="summary-empty">Añade jugadores y mesas para ver el reparto.</div></div>
+</div>
+
+<!-- HISTORIAL -->
+<div class="card" id="historyPanel" style="display:none">
+  <div class="card-title"><div class="dot"></div>Historial de sesiones</div>
+  <div id="historyList"><div class="empty-state">No hay sesiones guardadas todavía.</div></div>
+</div>
+
+</div><!-- /container -->
 <script>
-/* ═══════════════════════════════════════════
-   SESSION & MODE SETUP
-═══════════════════════════════════════════ */
-let sessionId = location.hash.slice(1).replace(/[^a-zA-Z0-9]/g, '');
-if (!sessionId) {
-  sessionId = Math.random().toString(36).slice(2,8).toUpperCase();
-  history.replaceState(null, '', '#' + sessionId);
+// ══════════════════════════════════════════════
+//  SUPABASE (hidden config, Ctrl+Shift+K)
+// ══════════════════════════════════════════════
+let SUPA_URL = localStorage.getItem('sb_url') || '';
+let SUPA_KEY = localStorage.getItem('sb_key') || '';
+let sb = null, sbReady = false;
+
+function saveCfg() {
+  SUPA_URL = document.getElementById('cfgUrl').value.trim();
+  SUPA_KEY = document.getElementById('cfgKey').value.trim();
+  localStorage.setItem('sb_url', SUPA_URL);
+  localStorage.setItem('sb_key', SUPA_KEY);
 }
-document.getElementById('sessionIdBox').textContent = sessionId;
+function openCfg()  { document.getElementById('cfgOverlay').classList.add('open'); }
+function closeCfg() { document.getElementById('cfgOverlay').classList.remove('open'); }
+function applyConfig() { saveCfg(); initSupabase(); closeCfg(); }
 
-const isLocal = localStorage.getItem('ps-mode') === 'local';
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'K') { e.preventDefault(); openCfg(); }
+});
 
-function setMode(mode) {
-  localStorage.setItem('ps-mode', mode);
-  location.reload();
-}
-
-// Apply mode UI
-document.getElementById('btnLive').className  = 'mode-btn' + (!isLocal ? ' active-live'  : '');
-document.getElementById('btnLocal').className = 'mode-btn' + ( isLocal ? ' active-local' : '');
-if (isLocal) {
-  document.getElementById('sessionIdBox').style.display = 'none';
-  document.getElementById('btnCopy').style.display      = 'none';
-  document.getElementById('sessionHint').style.display  = 'none';
-  document.getElementById('connLabel').textContent      = 'Solo local';
-  document.getElementById('liveDot').className          = 'live-dot off';
-}
-
-/* ═══════════════════════════════════════════
-   GUN SETUP
-═══════════════════════════════════════════ */
-const gun = isLocal
-  ? Gun({ localStorage: true })   // sin peers → nunca sincroniza
-  : Gun({
-      peers: [
-        'https://gun.eco/gun',
-        'wss://gun-us.herokuapp.com/gun',
-        'https://gundb-relay-mlmbl.ondigitalocean.app/gun'
-      ],
-      localStorage: true
-    });
-
-const root       = gun.get('billar-rc1').get(sessionId);
-const tablesRef  = root.get('tables');
-const playersRef = root.get('players');
-
-// Connection status (solo en modo live)
-let peerCount = 0;
-if (!isLocal) {
-  gun.on('hi',  () => { peerCount++; setStatus(true); });
-  gun.on('bye', () => { peerCount = Math.max(0, peerCount - 1); if (!peerCount) setStatus(false); });
-  setTimeout(() => { if (!peerCount) setStatus(false); }, 5000);
-}
-
-function setStatus(online) {
-  document.getElementById('liveDot').className          = 'live-dot ' + (online ? 'on' : 'off');
-  document.getElementById('connLabel').textContent      = online ? 'En directo' : 'Solo local (sin sync)';
-}
-
-/* ═══════════════════════════════════════════
-   STATE
-═══════════════════════════════════════════ */
-const NUM_PLAYERS = 10;
-let tablesData  = {};   // key → {name, ph, mins, order}
-let playersData = {};   // "p1"…"p10" → {name, mesa, mins}
-let suppressSync = false; // prevent echo loops
-
-/* ═══════════════════════════════════════════
-   PLAYER STATE & CARD BUILD
-═══════════════════════════════════════════ */
-let playerRows = {}; // "p1"…"p10" → [{mesa, mins}, ...]
-
-const playerCardsEl = document.getElementById('playerCards');
-for (let i = 1; i <= NUM_PLAYERS; i++) {
-  const card = document.createElement('div');
-  card.className = 'player-card';
-  card.id = `pcard${i}`;
-  card.innerHTML = `
-    <div class="player-header">
-      <span class="pnum">${i}</span>
-      <input type="text" id="pname${i}" placeholder="Jugador ${i}" oninput="onPlayerChange(${i})">
-      <span class="player-total" id="ptotal${i}">—</span>
-    </div>
-    <div class="pmrows" id="pmrows${i}"></div>
-    <button class="btn-add-mesa-row" onclick="addMesaRow(${i})">+ añadir mesa</button>
-  `;
-  playerCardsEl.appendChild(card);
-  playerRows[`p${i}`] = [];
-}
-
-/* ═══════════════════════════════════════════
-   GUN → PLAYERS LISTENERS (solo modo live)
-═══════════════════════════════════════════ */
-if (!isLocal) {
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    const key = `p${i}`;
-    playersRef.get(key).on((data) => {
-      if (!data) return;
-      playersData[key] = data;
-      suppressSync = true;
-      renderPlayerCard(i, data);
-      suppressSync = false;
-      recalculate();
-    });
-  }
-}
-
-function renderPlayerCard(i, data) {
-  const nameEl = document.getElementById(`pname${i}`);
-  if (document.activeElement !== nameEl) nameEl.value = data.name || '';
-
-  let rows = [];
-  try { rows = JSON.parse(data.rowsJson || '[]'); } catch(e) {}
-  // backwards-compat: old single-mesa format
-  if (!data.rowsJson && data.mesa) rows = [{ mesa: data.mesa, mins: data.mins || 0 }];
-
-  playerRows[`p${i}`] = rows;
-  rebuildMesaRows(i, rows);
-
-  const card = document.getElementById(`pcard${i}`);
-  card.classList.remove('flash-row');
-  void card.offsetWidth;
-  card.classList.add('flash-row');
-}
-
-function rebuildMesaRows(i, rows) {
-  const container = document.getElementById(`pmrows${i}`);
-  if (!container) return;
-  if (container.contains(document.activeElement)) return; // don't disrupt focus
-  container.innerHTML = '';
-  rows.forEach((row, idx) => container.appendChild(buildMesaRowEl(i, idx, row.mesa||'', row.mins||0)));
-}
-
-function buildMesaRowEl(i, idx, mesaVal, minsVal) {
-  const div = document.createElement('div');
-  div.className = 'pmrow';
-  div.id = `pmrow${i}-${idx}`;
-
-  const activeKeys = Object.entries(tablesData)
-    .filter(([,d]) => d && !d._del)
-    .sort(([,a],[,b]) => (a.order||0)-(b.order||0));
-
-  const mesaOpts = `<option value="">— Mesa —</option>` +
-    activeKeys.map(([key,d]) =>
-      `<option value="${key}"${key===mesaVal?' selected':''}>${d.name||key}</option>`
-    ).join('');
-
-  const minsOpts_ = Array.from({length:21},(_,k)=>k*15)
-    .map(m=>`<option value="${m}"${m==minsVal?' selected':''}>${m===0?'— min —':m+' min'}</option>`)
-    .join('');
-
-  div.innerHTML = `
-    <select id="pmesa${i}-${idx}" onchange="onPlayerChange(${i})">${mesaOpts}</select>
-    <select id="pmins${i}-${idx}" onchange="onPlayerChange(${i})">${minsOpts_}</select>
-    <button class="btn-remove-row" onclick="removeMesaRow(${i},${idx})">×</button>
-  `;
-  return div;
-}
-
-function addMesaRow(i) {
-  const key  = `p${i}`;
-  const rows = [...(playerRows[key]||[]), { mesa:'', mins:0 }];
-  playerRows[key] = rows;
-  document.getElementById(`pmrows${i}`).appendChild(buildMesaRowEl(i, rows.length-1, '', 0));
-  syncPlayer(i);
-}
-
-function removeMesaRow(i, idx) {
-  const key  = `p${i}`;
-  const rows = [...(playerRows[key]||[])];
-  rows.splice(idx, 1);
-  playerRows[key] = rows;
-  rebuildMesaRows(i, rows);
-  syncPlayer(i);
-  recalculate();
-}
-
-function onPlayerChange(i) {
-  if (suppressSync) return;
-  readPlayerRows(i);
-  syncPlayer(i);
-  recalculate();
-}
-
-function readPlayerRows(i) {
-  const container = document.getElementById(`pmrows${i}`);
-  if (!container) return;
-  const rows = [];
-  container.querySelectorAll('.pmrow').forEach((el, idx) => {
-    const mesaEl = document.getElementById(`pmesa${i}-${idx}`);
-    const minsEl = document.getElementById(`pmins${i}-${idx}`);
-    if (mesaEl && minsEl) rows.push({ mesa: mesaEl.value, mins: parseFloat(minsEl.value)||0 });
-  });
-  playerRows[`p${i}`] = rows;
-}
-
-function syncPlayer(i) {
-  if (suppressSync) return;
-  const data = {
-    name: document.getElementById(`pname${i}`)?.value || '',
-    rowsJson: JSON.stringify(playerRows[`p${i}`]||[])
-  };
-  if (isLocal) { localSave(); } else { playersRef.get(`p${i}`).put(data); }
-}
-
-/* ═══════════════════════════════════════════
-   MESA SELECTORS — refresh all player dropdowns
-═══════════════════════════════════════════ */
-function updateMesaSelectors() {
-  const activeKeys = Object.entries(tablesData)
-    .filter(([,d]) => d && !d._del)
-    .sort(([,a],[,b]) => (a.order||0)-(b.order||0));
-
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    const container = document.getElementById(`pmrows${i}`);
-    if (!container) continue;
-    container.querySelectorAll('select[id^="pmesa"]').forEach(sel => {
-      if (document.activeElement === sel) return;
-      const cur = sel.value;
-      sel.innerHTML = `<option value="">— Mesa —</option>` +
-        activeKeys.map(([key,d]) =>
-          `<option value="${key}"${key===cur?' selected':''}>${d.name||key}</option>`
-        ).join('');
-      sel.value = cur;
-    });
-  }
-}
-
-/* ═══════════════════════════════════════════
-   CALCULATION
-   Cada mesa se reparte SOLO entre sus jugadores.
-═══════════════════════════════════════════ */
-function recalculate() {
-  // 1. Table costs
-  const tableCost = {};
-  let costoTotal = 0, mesasActivas = 0;
-  Object.entries(tablesData).forEach(([key,d]) => {
-    if (!d || d._del) return;
-    const cost = ((d.mins||0)/60)*(d.ph||0);
-    tableCost[key] = cost;
-    if (cost > 0) { costoTotal += cost; mesasActivas++; }
-  });
-
-  // 2. Sum player-mins per table
-  const tablePlayerMins = {};
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    (playerRows[`p${i}`]||[]).forEach(row => {
-      if (!row.mesa || row.mins<=0) return;
-      tablePlayerMins[row.mesa] = (tablePlayerMins[row.mesa]||0) + row.mins;
-    });
-  }
-
-  // 3. Compute each player's cost across all their mesa-rows
-  const playerPago     = {};
-  const playerDetalles = {};
-  let totalJugados = 0, totalCobrado = 0;
-
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    let playerTotal = 0;
-    const detalles  = [];
-    (playerRows[`p${i}`]||[]).forEach(row => {
-      if (!row.mesa || row.mins<=0) return;
-      totalJugados += row.mins;
-      const mc  = tableCost[row.mesa]    || 0;
-      const mtm = tablePlayerMins[row.mesa] || 0;
-      if (mc > 0 && mtm > 0) {
-        const pago = (row.mins / mtm) * mc;
-        playerTotal += pago;
-        detalles.push({ mesaNombre: tablesData[row.mesa]?.name||row.mesa, mins: row.mins, pago });
-      } else if (mc === 0) {
-        detalles.push({ mesaNombre: tablesData[row.mesa]?.name||row.mesa, mins: row.mins, pago: -1 });
-      }
-    });
-    playerPago[i]     = playerTotal;
-    playerDetalles[i] = detalles;
-    totalCobrado     += playerTotal;
-  }
-
-  // 4. Render totals on each player card
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    const totalEl = document.getElementById(`ptotal${i}`);
-    if (!totalEl) continue;
-    const total = playerPago[i] || 0;
-    if (total > 0) {
-      totalEl.textContent = `€${total.toFixed(2)}`;
-      totalEl.className   = 'player-total has-value';
-    } else {
-      totalEl.textContent = '—';
-      totalEl.className   = 'player-total';
-    }
-  }
-
-  // 5. Summary by name
-  const byName = {};
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    const name = document.getElementById(`pname${i}`)?.value.trim();
-    if (!name) continue;
-    const detalles = (playerDetalles[i]||[]).filter(d=>d.pago>0);
-    if (!detalles.length) continue;
-    if (!byName[name]) byName[name] = { total:0, detalles:[] };
-    byName[name].total += playerPago[i]||0;
-    detalles.forEach(d => byName[name].detalles.push(`${d.mesaNombre}: ${d.mins} min`));
-  }
-
-  const grid  = document.getElementById('summaryGrid');
-  const names = Object.keys(byName);
-  grid.innerHTML = names.length === 0
-    ? '<div class="summary-empty">Introduce jugadores y mesas para ver el resumen</div>'
-    : names.sort().map(name => {
-        const { total, detalles } = byName[name];
-        return `<div class="summary-player">
-          <div class="summary-name">${name}</div>
-          <div class="summary-amount">€${total.toFixed(2)}</div>
-          <div class="summary-detail">${detalles.join('<br>')}</div>
-        </div>`;
-      }).join('');
-
-  // 6. Totals bar
-  const tC=document.getElementById('totCosto'), tCS=document.getElementById('totCostoSub');
-  if (costoTotal>0){tC.textContent=`€${costoTotal.toFixed(2)}`;tCS.textContent=`${mesasActivas} mesa${mesasActivas!==1?'s':''} activas`;}
-  else{tC.textContent='—';tCS.textContent='';}
-
-  document.getElementById('totMesas').textContent    = Object.values(tablesData).filter(d=>d&&!d._del).length;
-  document.getElementById('totMesasSub').textContent = mesasActivas>0?`${mesasActivas} con precio`:'ninguna con precio';
-
-  const tJ=document.getElementById('totJugados'),tD=document.getElementById('totDiff');
-  tJ.textContent=`${totalJugados} min`;tJ.className='total-value ok';tD.textContent='';
-
-  const tCob=document.getElementById('totCobrado'),tR=document.getElementById('totRestante');
-  if (totalCobrado>0){
-    tCob.textContent=`€${totalCobrado.toFixed(2)}`;
-    const r=costoTotal-totalCobrado;
-    tR.textContent=r>0.005?`Faltan €${r.toFixed(2)}`:(r<-0.005?`⚠ exceso €${Math.abs(r).toFixed(2)}`:'✓ cubierto al 100%');
-  }else{tCob.textContent='—';tR.textContent='';}
-}
-
-/* ═══════════════════════════════════════════
-   COPY LINK
-═══════════════════════════════════════════ */
-function copyLink() {
-  const url = location.href;
-  navigator.clipboard.writeText(url).then(() => {
-    const btn = document.getElementById('btnCopy');
-    btn.textContent='✓ Copiado'; btn.className='btn-copy copied';
-    setTimeout(()=>{btn.textContent='Copiar enlace';btn.className='btn-copy';},2000);
-  }).catch(()=>{ prompt('Copia este enlace:', url); });
-}
-
-/* ═══════════════════════════════════════════
-   LOCAL STORAGE HELPERS
-═══════════════════════════════════════════ */
-function localSave() {
-  localStorage.setItem(`ps-t-${sessionId}`, JSON.stringify(tablesData));
-  const pd = {};
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    pd[`p${i}`] = {
-      name: document.getElementById(`pname${i}`)?.value || '',
-      rowsJson: JSON.stringify(playerRows[`p${i}`] || [])
-    };
-  }
-  localStorage.setItem(`ps-p-${sessionId}`, JSON.stringify(pd));
-}
-
-function localLoad() {
-  try {
-    const tables = JSON.parse(localStorage.getItem(`ps-t-${sessionId}`) || '{}');
-    Object.entries(tables).forEach(([key, data]) => {
-      if (!data || data._del) return;
-      tablesData[key] = data;
-      patchTableRow(key, data);
-    });
-    updateMesaSelectors();
-  } catch(e) {}
-  try {
-    const players = JSON.parse(localStorage.getItem(`ps-p-${sessionId}`) || '{}');
-    Object.entries(players).forEach(([key, data]) => {
-      const i = parseInt(key.slice(1));
-      if (!i) return;
-      playersData[key] = data;
-      suppressSync = true;
-      renderPlayerCard(i, data);
-      suppressSync = false;
-    });
-  } catch(e) {}
-  recalculate();
-}
-
-/* ═══════════════════════════════════════════
-   GUN → TABLES LISTENER (solo modo live)
-═══════════════════════════════════════════ */
-if (!isLocal) {
-  tablesRef.map().on((data, key) => {
-    if (!data || data._del) {
-      delete tablesData[key];
-      const row = document.getElementById(`trow-${key}`);
-      if (row) row.remove();
-    } else {
-      tablesData[key] = data;
-      patchTableRow(key, data);
-    }
-    updateMesaSelectors();
-    recalculate();
-  });
-}
-
-/* ═══════════════════════════════════════════
-   TABLE ROW DOM
-═══════════════════════════════════════════ */
-function minsOpts(sel=0) {
-  return Array.from({length:21},(_,k)=>k*15)
-    .map(m=>`<option value="${m}"${m==sel?' selected':''}>${m===0?'— min —':m+' min'}</option>`).join('');
-}
-function phOpts(sel=0) {
-  return Array.from({length:101},(_,k)=>k)
-    .map(p=>`<option value="${p}"${p==sel?' selected':''}>${p===0?'— €/h —':p+' €/h'}</option>`).join('');
-}
-
-function patchTableRow(key, data) {
-  let row = document.getElementById(`trow-${key}`);
-  if (!row) {
-    row = document.createElement('div');
-    row.className = 'table-row';
-    row.id = `trow-${key}`;
-    row.setAttribute('data-key', key);
-    row.innerHTML = `
-      <div>
-        <label>Nombre de la mesa</label>
-        <input type="text" id="tname-${key}" placeholder="Mesa" oninput="onTableInput('${key}')">
-      </div>
-      <div>
-        <label>€ / hora</label>
-        <select id="tph-${key}" onchange="onTableInput('${key}')">${phOpts(data.ph||0)}</select>
-      </div>
-      <div>
-        <label>Minutos usados</label>
-        <select id="tmins-${key}" onchange="onTableInput('${key}')">${minsOpts(data.mins||0)}</select>
-      </div>
-      <div>
-        <label>Coste mesa</label>
-        <div class="cost-val" id="tcost-${key}">—</div>
-      </div>
-      <button class="btn-remove" onclick="removeTable('${key}')" title="Eliminar mesa">×</button>
-    `;
-    const list    = document.getElementById('tablesList');
-    const allRows = [...list.querySelectorAll('[data-key]')];
-    const inserted = allRows.find(r => (tablesData[r.dataset.key]?.order || 0) > (data.order || 0));
-    inserted ? list.insertBefore(row, inserted) : list.appendChild(row);
-  }
-  const nameEl = document.getElementById(`tname-${key}`);
-  const phEl   = document.getElementById(`tph-${key}`);
-  const minsEl = document.getElementById(`tmins-${key}`);
-  const costEl = document.getElementById(`tcost-${key}`);
-  suppressSync = true;
-  if (nameEl && document.activeElement !== nameEl) nameEl.value = data.name || '';
-  if (phEl   && document.activeElement !== phEl)   phEl.value   = data.ph   >= 0 ? data.ph   : 0;
-  if (minsEl && document.activeElement !== minsEl) minsEl.value = data.mins >= 0 ? data.mins : 0;
-  suppressSync = false;
-  if (costEl) {
-    const cost = ((data.mins||0)/60)*(data.ph||0);
-    costEl.textContent = cost > 0 ? `€${cost.toFixed(2)}` : '—';
-  }
-}
-
-function onTableInput(key) {
-  if (suppressSync) return;
-  const ph   = parseFloat(document.getElementById(`tph-${key}`)?.value)   || 0;
-  const mins = parseFloat(document.getElementById(`tmins-${key}`)?.value) || 0;
-  const name = document.getElementById(`tname-${key}`)?.value || '';
-  const costEl = document.getElementById(`tcost-${key}`);
-  if (costEl) costEl.textContent = (mins/60)*ph > 0 ? `€${((mins/60)*ph).toFixed(2)}` : '—';
-  const data = { name, ph, mins, order: tablesData[key]?.order || Date.now(), _del: false };
-  tablesData[key] = data;
-  if (isLocal) { localSave(); } else { tablesRef.get(key).put(data); }
-  updateMesaSelectors();
-  recalculate();
-}
-
-function addTable() {
-  const key  = 't' + Date.now();
-  const data = { name: `Mesa ${Object.values(tablesData).filter(d=>d&&!d._del).length + 1}`, ph: 0, mins: 0, order: Date.now(), _del: false };
-  tablesData[key] = data;
-  patchTableRow(key, data);
-  updateMesaSelectors();
-  recalculate();
-  if (isLocal) { localSave(); } else { tablesRef.get(key).put(data); }
-}
-
-function removeTable(key) {
-  const row = document.getElementById(`trow-${key}`);
-  if (row) { row.style.opacity='0'; row.style.transform='translateY(-4px)'; row.style.transition='all 0.2s'; setTimeout(()=>row.remove(),200); }
-  delete tablesData[key];
-  if (isLocal) { localSave(); } else { tablesRef.get(key).put({ _del: true }); }
-  updateMesaSelectors();
-  recalculate();
-}
-
-/* ═══════════════════════════════════════════
-   CLEAR ALL
-═══════════════════════════════════════════ */
-function clearAll() {
-  if (!confirm('¿Seguro que quieres limpiar toda la sesión?')) return;
-  if (!isLocal) Object.keys(tablesData).forEach(key => tablesRef.get(key).put({ _del:true }));
-  tablesData = {};
-  document.getElementById('tablesList').innerHTML = '';
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    playerRows[`p${i}`] = [];
-    if (!isLocal) playersRef.get(`p${i}`).put({ name:'', rowsJson:'[]' });
-    const nameEl = document.getElementById(`pname${i}`);
-    if (nameEl) nameEl.value = '';
-    const cont = document.getElementById(`pmrows${i}`);
-    if (cont) cont.innerHTML = '';
-    const tot = document.getElementById(`ptotal${i}`);
-    if (tot) { tot.textContent='—'; tot.className='player-total'; }
-  }
-  if (isLocal) localSave();
-  updateMesaSelectors();
-  recalculate();
-}
-
-/* ═══════════════════════════════════════════
-   INIT
-═══════════════════════════════════════════ */
-if (isLocal) {
-  localLoad();
-} else {
-  // Live mode: add 2 default tables only if session is empty
-  setTimeout(() => {
-    if (Object.keys(tablesData).length === 0) { addTable(); addTable(); }
-  }, 800);
-}
-/* ═══════════════════════════════════════════
-   DATE & HISTORY
-═══════════════════════════════════════════ */
-function saveDate() {
-  localStorage.setItem(`ps-date-${sessionId}`, document.getElementById('sessionDate').value);
-}
-function loadDate() {
-  const d = localStorage.getItem(`ps-date-${sessionId}`);
-  const el = document.getElementById('sessionDate');
-  el.value = d || new Date().toISOString().slice(0,10);
-  // Fix the partidas link with real session id
-  document.getElementById('linkPartidas').href = `partidas.html#${sessionId}`;
-}
-
-function saveSession() {
-  const date = document.getElementById('sessionDate').value || new Date().toISOString().slice(0,10);
-  const history = JSON.parse(localStorage.getItem('ps-history') || '[]');
-  const summary = [];
-  for (let i = 1; i <= NUM_PLAYERS; i++) {
-    const name = document.getElementById(`pname${i}`)?.value.trim();
-    const tot  = document.getElementById(`ptotal${i}`)?.textContent;
-    if (name && tot && tot !== '—') summary.push({ name, total: tot });
-  }
-  if (summary.length === 0) { alert('No hay jugadores con datos para guardar.'); return; }
-  history.unshift({ sessionId, date, summary, tables: Object.values(tablesData).filter(d=>d&&!d._del).map(d=>d.name) });
-  localStorage.setItem('ps-history', JSON.stringify(history.slice(0,50)));
-  alert('✓ Sesión guardada en el historial.');
-}
-
-function toggleHistory() {
-  const panel = document.getElementById('historyPanel');
-  if (panel.style.display === 'none') {
-    renderHistory();
-    panel.style.display = 'block';
-  } else {
-    panel.style.display = 'none';
-  }
-}
-
-function renderHistory() {
-  const history = JSON.parse(localStorage.getItem('ps-history') || '[]');
-  const list = document.getElementById('historyList');
-  if (history.length === 0) {
-    list.innerHTML = '<p style="color:var(--silver-dark);font-size:.85rem;padding:.5rem 0">No hay sesiones guardadas todavía.</p>';
+function initSupabase() {
+  if (!SUPA_URL.includes('supabase') || !SUPA_KEY.startsWith('eyJ')) {
+    if (SUPA_URL || SUPA_KEY) setDb('err', 'Error de configuración');
     return;
   }
-  list.innerHTML = history.map((s, idx) => `
-    <div style="background:var(--felt-mid);border:1px solid rgba(59,130,246,.14);border-radius:5px;padding:.9rem 1.1rem;margin-bottom:.65rem;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.55rem;flex-wrap:wrap;gap:.4rem;">
-        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:1rem;color:var(--cyan);letter-spacing:.06em;">${s.date}</span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--silver-dark)">${s.tables?.join(', ')||'—'}</span>
-        <button onclick="deleteHistory(${idx})" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:3px;color:#f87171;font-size:.75rem;padding:.18rem .5rem;cursor:pointer;">Borrar</button>
+  try { sb = supabase.createClient(SUPA_URL, SUPA_KEY); checkSupabase(); }
+  catch(e) { setDb('err', 'Error al inicializar'); }
+}
+async function checkSupabase() {
+  try {
+    const { error } = await sb.from('gastos_sessions').select('id').limit(1);
+    if (error) throw error;
+    sbReady = true; setDb('ok', 'BD conectada');
+    await loadHistoryFromDB();
+  } catch(e) { sbReady = false; setDb('err', 'Error BD'); }
+}
+function setDb(state, msg) {
+  document.getElementById('dbDot').className = 'db-dot ' + state;
+  document.getElementById('dbLabel').textContent = msg;
+}
+
+// ══════════════════════════════════════════════
+//  GUN SYNC
+// ══════════════════════════════════════════════
+let isLocal = true, gun = null, gunNode = null, sessionId = '', lastLocal = 0;
+
+function initSession() {
+  sessionId = location.hash.slice(1).replace(/[^a-zA-Z0-9]/g, '');
+  if (!sessionId) sessionId = Math.random().toString(36).slice(2,8).toUpperCase();
+  location.hash = sessionId;
+  document.getElementById('sessionIdBox').textContent = sessionId;
+  document.getElementById('linkPartidas').href = 'partidas.html#' + sessionId;
+}
+function setMode(mode) {
+  isLocal = mode === 'local';
+  document.getElementById('btnLocal').className = 'mode-btn' + (isLocal ? ' active-local' : '');
+  document.getElementById('btnLive').className  = 'mode-btn' + (!isLocal ? ' active-live' : '');
+  const dot = document.getElementById('liveDot');
+  if (isLocal) {
+    dot.className = 'live-dot off';
+    document.getElementById('connLabel').textContent = 'Solo local';
+    gun = null; gunNode = null;
+  } else {
+    dot.className = 'live-dot on';
+    document.getElementById('connLabel').textContent = 'En directo · ' + sessionId;
+    gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+    gunNode = gun.get('ps-gastos-' + sessionId);
+    gunNode.on(d => {
+      if (Date.now() - lastLocal < 2000) return;
+      if (['INPUT','SELECT'].includes(document.activeElement.tagName)) return;
+      if (d && d.state) try {
+        const s = JSON.parse(d.state);
+        mesas = s.mesas || []; jugadores = s.jugadores || [];
+        document.getElementById('sessionDate').value = s.fecha || '';
+        renderAll();
+      } catch(e) {}
+    });
+  }
+}
+function pushGun() {
+  if (isLocal || !gunNode) return;
+  lastLocal = Date.now();
+  gunNode.put({ state: JSON.stringify({ mesas, jugadores, fecha: document.getElementById('sessionDate').value }) });
+}
+function copyLink() {
+  navigator.clipboard.writeText(location.href);
+  const btn = document.getElementById('btnCopy');
+  btn.textContent = '✓ Copiado'; btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copiar enlace'; btn.classList.remove('copied'); }, 2000);
+}
+
+// ══════════════════════════════════════════════
+//  GLOBAL TEMPLATES (shared with partidas.html)
+// ══════════════════════════════════════════════
+let globalPlayers = [];
+let globalTables  = [];
+
+function loadGlobals() {
+  globalPlayers = JSON.parse(localStorage.getItem('ps-global-players') || '[]');
+  globalTables  = JSON.parse(localStorage.getItem('ps-global-tables')  || '[]');
+}
+function saveGlobals() {
+  localStorage.setItem('ps-global-players', JSON.stringify(globalPlayers));
+  localStorage.setItem('ps-global-tables',  JSON.stringify(globalTables));
+  updateDataLists();
+}
+
+function updateDataLists() {
+  // datalist for player name inputs
+  document.getElementById('dlPlayers').innerHTML =
+    globalPlayers.map(p => `<option value="${esc(p.name)}">`).join('');
+  // datalist for mesa name inputs
+  document.getElementById('dlTables').innerHTML =
+    globalTables.map(t => `<option value="${esc(t.name)}">`).join('');
+  // Show/hide "from template" buttons
+  document.getElementById('btnFromTemplate').style.display = globalTables.length ? '' : 'none';
+  document.getElementById('btnPlayerFromTemplate').style.display = globalPlayers.length ? '' : 'none';
+}
+
+// — Player template —
+function addGlobalPlayer() {
+  const input = document.getElementById('newPlayerName');
+  const name = input.value.trim();
+  if (!name || globalPlayers.some(p => p.name === name)) return;
+  globalPlayers.push({ name });
+  saveGlobals();
+  renderPlayerTemplate();
+  input.value = '';
+}
+function removeGlobalPlayer(name) {
+  globalPlayers = globalPlayers.filter(p => p.name !== name);
+  saveGlobals();
+  renderPlayerTemplate();
+}
+function renderPlayerTemplate() {
+  const c = document.getElementById('playerTemplateList');
+  c.innerHTML = globalPlayers.map(p => `
+    <span class="template-chip">${esc(p.name)}
+      <button onclick="removeGlobalPlayer('${esc(p.name)}')" title="Eliminar">✕</button>
+    </span>`).join('') || '<span style="font-family:\'JetBrains Mono\',monospace;font-size:.72rem;color:var(--silver-dark)">Sin jugadores en plantilla</span>';
+}
+
+// — Table template —
+function addGlobalTable() {
+  const name  = document.getElementById('newTableName').value.trim();
+  const price = +document.getElementById('newTablePrice').value;
+  if (!name) return;
+  if (!globalTables.some(t => t.name === name)) globalTables.push({ name, price });
+  saveGlobals();
+  renderTableTemplate();
+  document.getElementById('newTableName').value = '';
+}
+function removeGlobalTable(name) {
+  globalTables = globalTables.filter(t => t.name !== name);
+  saveGlobals();
+  renderTableTemplate();
+}
+function renderTableTemplate() {
+  const c = document.getElementById('tableTemplateList');
+  c.innerHTML = globalTables.map(t => `
+    <span class="template-chip">${esc(t.name)} <span style="color:var(--silver-dark)">${t.price}€/h</span>
+      <button onclick="removeGlobalTable('${esc(t.name)}')" title="Eliminar">✕</button>
+    </span>`).join('') || '<span style="font-family:\'JetBrains Mono\',monospace;font-size:.72rem;color:var(--silver-dark)">Sin mesas en plantilla</span>';
+  document.getElementById('btnFromTemplate').style.display = globalTables.length ? '' : 'none';
+}
+
+// — Add from template —
+function addMesaFromTemplate() {
+  if (!globalTables.length) return;
+  globalTables.forEach(t => {
+    if (!mesas.some(m => m.nombre === t.name)) {
+      mesas.push({ id: uid(), nombre: t.name, precio: t.price, minutos: 0, horaEntrada: '', horaSalida: '' });
+    }
+  });
+  renderMesas(); updateMesaSelectsInCards(); recalculate(); saveLocal(); pushGun();
+}
+function addJugadorFromTemplate() {
+  if (!globalPlayers.length || jugadores.length >= 10) return;
+  const slots = 10 - jugadores.length;
+  globalPlayers.slice(0, slots).forEach(p => {
+    if (!jugadores.some(j => j.nombre === p.name)) {
+      jugadores.push({ id: uid(), nombre: p.name, mesas: [] });
+    }
+  });
+  renderJugadores(); recalculate();
+  document.getElementById('addPlayerBtn').style.display = jugadores.length >= 10 ? 'none' : '';
+  document.getElementById('btnPlayerFromTemplate').style.display = jugadores.length >= 10 ? 'none' : '';
+}
+
+// ══════════════════════════════════════════════
+//  SESSION DATA
+// ══════════════════════════════════════════════
+let mesas = [], jugadores = [], history = [];
+
+function minOpts(sel = 0) {
+  let o = '';
+  for (let m = 0; m <= 300; m += 15)
+    o += `<option value="${m}"${m === sel ? ' selected' : ''}>${m} min</option>`;
+  return o;
+}
+function priceOpts(sel = 10) {
+  let o = '';
+  for (let p = 0; p <= 100; p++)
+    o += `<option value="${p}"${p === sel ? ' selected' : ''}>${p} €/h</option>`;
+  return o;
+}
+
+// ── MESAS ──
+function calcMins(entrada, salida) {
+  if (!entrada || !salida) return 0;
+  const [eh, em] = entrada.split(':').map(Number);
+  const [sh, sm] = salida.split(':').map(Number);
+  let mins = (sh * 60 + sm) - (eh * 60 + em);
+  return mins < 0 ? mins + 1440 : mins; // crosses midnight
+}
+function minsLabel(entrada, salida, fallback) {
+  const m = calcMins(entrada, salida);
+  return m > 0 ? `${m} min` : (fallback > 0 ? `${fallback} min` : '0 min');
+}
+
+function addMesa() {
+  mesas.push({ id: uid(), nombre: '', precio: 10, minutos: 0, horaEntrada: '', horaSalida: '' });
+  renderMesas(); updateMesaSelectsInCards(); recalculate(); saveLocal(); pushGun();
+}
+function removeMesa(id) {
+  mesas = mesas.filter(m => m.id !== id);
+  jugadores.forEach(j => { j.mesas = j.mesas.filter(jm => mesas.some(m => m.id === jm.mid)); });
+  renderMesas(); renderJugadores(); recalculate(); saveLocal(); pushGun();
+}
+function getMesa(id) { return mesas.find(m => m.id === id); }
+
+// KEY FIX: mesa name input uses blur for re-render, oninput only updates model + option texts
+function onMesaName(id, value) {
+  const m = getMesa(id); if (!m) return;
+  m.nombre = value;
+  // Update just the <option> texts in player cards without rebuilding
+  document.querySelectorAll(`.pmrow select option[value="${id}"]`).forEach(opt => {
+    opt.textContent = value || '(sin nombre)';
+  });
+  saveLocal(); pushGun();
+}
+
+function renderMesas() {
+  const c = document.getElementById('tablesList');
+  if (!mesas.length) { c.innerHTML = '<div class="empty-state">Sin mesas. Añade una o usa la plantilla.</div>'; return; }
+  c.innerHTML = mesas.map(m => `
+    <div class="mesa-row">
+      <div class="mesa-top">
+        <div>
+          <label>Nombre de mesa</label>
+          ${globalTables.length ? `<select style="margin-bottom:.3rem;font-size:.78rem;padding:.3rem .5rem;color:var(--silver-dim);width:100%"
+            onchange="if(this.value){const t=globalTables.find(x=>x.name===this.value);if(t){getMesa('${m.id}').nombre=t.name;getMesa('${m.id}').precio=t.price;renderMesas();updateMesaSelectsInCards();recalculate();saveLocal();pushGun()}}">
+            <option value="">— Seleccionar —</option>
+            ${globalTables.map(t=>`<option value="${esc(t.name)}"${m.nombre===t.name?'selected':''}>${esc(t.name)} (${t.price}€/h)</option>`).join('')}
+          </select>` : ''}
+          <input type="text" id="mn_${m.id}" value="${esc(m.nombre)}" placeholder="Mesa" list="dlTables"
+            oninput="onMesaName('${m.id}',this.value)" onchange="updateMesaSelectsInCards();recalculate()">
+        </div>
+        <div>
+          <label>€ / hora</label>
+          <select onchange="getMesa('${m.id}').precio=+this.value;recalculate();saveLocal();pushGun()">
+            ${priceOpts(m.precio)}
+          </select>
+        </div>
+        <div style="align-self:flex-end">
+          <button class="btn-remove" onclick="removeMesa('${m.id}')">✕</button>
+        </div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:.4rem;">
-        ${s.summary.map(p=>`<span style="background:var(--navy);border:1px solid rgba(59,130,246,.2);border-radius:3px;padding:.2rem .6rem;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--silver);">${p.name} <strong style="color:var(--cyan)">${p.total}</strong></span>`).join('')}
+      <div class="mesa-times">
+        <div>
+          <label>🕐 Hora entrada</label>
+          <input type="time" value="${m.horaEntrada||''}"
+            onchange="getMesa('${m.id}').horaEntrada=this.value;recalculate();saveLocal();pushGun()">
+        </div>
+        <div>
+          <label>🕐 Hora salida</label>
+          <input type="time" value="${m.horaSalida||''}"
+            onchange="getMesa('${m.id}').horaSalida=this.value;recalculate();saveLocal();pushGun()">
+        </div>
       </div>
     </div>`).join('');
 }
 
-function deleteHistory(idx) {
-  const history = JSON.parse(localStorage.getItem('ps-history') || '[]');
-  history.splice(idx, 1);
-  localStorage.setItem('ps-history', JSON.stringify(history));
+// Copy mesa times to player when assigned (always overwrites — player can edit after)
+function assignMesaToJugador(jid, mi, mesaId) {
+  const jm = getJug(jid).mesas[mi];
+  const m  = getMesa(mesaId);
+  jm.mid = mesaId;
+  if (m) {
+    jm.horaEntrada = m.horaEntrada || '';
+    jm.horaSalida  = m.horaSalida  || '';
+  }
+}
+
+// (kept for addJugMesa copy on initial add)
+function copyMesaTimes(mesaId) {}
+
+function updateMesaSelectsInCards() {
+  document.querySelectorAll('.pmrow select:first-child').forEach(sel => {
+    const currentVal = sel.value;
+    sel.innerHTML = mesas.map(m =>
+      `<option value="${m.id}"${m.id === currentVal ? ' selected' : ''}>${esc(m.nombre || '(sin nombre)')}</option>`
+    ).join('');
+  });
+}
+
+// ── JUGADORES ──
+function addJugador() {
+  if (jugadores.length >= 10) return;
+  jugadores.push({ id: uid(), nombre: '', mesas: [] });
+  renderJugadores(); recalculate();
+  document.getElementById('addPlayerBtn').style.display = jugadores.length >= 10 ? 'none' : '';
+  document.getElementById('btnPlayerFromTemplate').style.display = jugadores.length >= 10 ? 'none' : '';
+}
+function removeJugador(id) {
+  jugadores = jugadores.filter(j => j.id !== id);
+  renderJugadores(); recalculate(); saveLocal(); pushGun();
+  document.getElementById('addPlayerBtn').style.display = jugadores.length >= 10 ? 'none' : '';
+  document.getElementById('btnPlayerFromTemplate').style.display = jugadores.length >= 10 ? 'none' : '';
+}
+function addJugMesa(jid) {
+  const firstMesaId = mesas[0]?.id || '';
+  const m = getMesa(firstMesaId);
+  getJug(jid).mesas.push({
+    mid: firstMesaId, minutos: 0,
+    horaEntrada: m?.horaEntrada || '',
+    horaSalida:  m?.horaSalida  || ''
+  });
+  renderJugadores(); recalculate(); saveLocal();
+}
+function removeJugMesa(jid, idx) {
+  getJug(jid).mesas.splice(idx, 1);
+  renderJugadores(); recalculate(); saveLocal();
+}
+function getJug(id) { return jugadores.find(j => j.id === id); }
+
+function renderJugadores() {
+  const c = document.getElementById('playerCards');
+  if (!jugadores.length) { c.innerHTML = '<div class="empty-state">Sin jugadores. Añade uno o usa la plantilla.</div>'; return; }
+  c.innerHTML = jugadores.map((j, i) => `
+    <div class="player-card">
+      <div class="player-header">
+        <span class="pnum">${i + 1}</span>
+        <div style="flex:1">
+          ${globalPlayers.length ? `<select style="width:100%;font-size:.88rem;padding:.4rem .6rem"
+            onchange="getJug('${j.id}').nombre=this.value;recalculate();saveLocal();pushGun()">
+            <option value="">— Seleccionar jugador —</option>
+            ${globalPlayers.map(p=>`<option value="${esc(p.name)}"${j.nombre===p.name?'selected':''}>${esc(p.name)}</option>`).join('')}
+          </select>` : `<input type="text" value="${esc(j.nombre)}" placeholder="Nombre jugador"
+            oninput="getJug('${j.id}').nombre=this.value;recalculate();saveLocal();pushGun()">`}
+        </div>
+        <span class="player-total${j._total ? ' has-value' : ''}" id="ptot_${j.id}">${j._total ? j._total + '€' : '—'}</span>
+        <button class="btn-remove" onclick="removeJugador('${j.id}')">✕</button>
+      </div>
+      <div class="pmrows">
+        ${j.mesas.map((jm, mi) => `
+          <div class="pmrow">
+            <div class="pmrow-top">
+              <select onchange="assignMesaToJugador('${j.id}',${mi},this.value);renderJugadores();recalculate();saveLocal();pushGun()">
+                ${mesas.map(m => `<option value="${m.id}"${m.id === jm.mid ? ' selected' : ''}>${esc(m.nombre || '(sin nombre)')}</option>`).join('')}
+              </select>
+              <button class="btn-remove-row" onclick="removeJugMesa('${j.id}',${mi})">✕</button>
+            </div>
+            <div class="pmrow-times">
+              <div>
+                <label style="font-size:.58rem">Entrada</label>
+                <input type="time" value="${jm.horaEntrada||''}"
+                  onchange="getJug('${j.id}').mesas[${mi}].horaEntrada=this.value;recalculate();saveLocal();pushGun()">
+              </div>
+              <div>
+                <label style="font-size:.58rem">Salida</label>
+                <input type="time" value="${jm.horaSalida||''}"
+                  onchange="getJug('${j.id}').mesas[${mi}].horaSalida=this.value;recalculate();saveLocal();pushGun()">
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>
+      ${mesas.length ? `<button class="btn-add-sm" onclick="addJugMesa('${j.id}')">+ Mesa</button>` : ''}
+    </div>`).join('');
+}
+
+// ── CÁLCULO ──
+function recalculate() {
+  const mesaCost = {};
+  mesas.forEach(m => {
+    const mins = calcMins(m.horaEntrada, m.horaSalida) || m.minutos;
+    mesaCost[m.id] = { cost: (m.precio * mins) / 60, mins };
+  });
+  const mesaTotalMin = {};
+  jugadores.forEach(j => j.mesas.forEach(jm => {
+    const mins = calcMins(jm.horaEntrada, jm.horaSalida) || jm.minutos;
+    mesaTotalMin[jm.mid] = (mesaTotalMin[jm.mid] || 0) + mins;
+  }));
+  const byName = {};
+  jugadores.forEach(j => {
+    const name = j.nombre.trim() || '?';
+    if (!byName[name]) byName[name] = { total: 0, items: [] };
+    j.mesas.forEach(jm => {
+      const m = getMesa(jm.mid); if (!m) return;
+      const jMins = calcMins(jm.horaEntrada, jm.horaSalida) || jm.minutos;
+      if (!jMins) return;
+      const allMin = mesaTotalMin[jm.mid] || 0; if (!allMin) return;
+      const share = (jMins / allMin) * (mesaCost[jm.mid]?.cost || 0);
+      byName[name].total += share;
+      const timeStr = jm.horaEntrada && jm.horaSalida ? ` (${jm.horaEntrada}–${jm.horaSalida})` : ` (${jMins}min)`;
+      byName[name].items.push(`${m.nombre || '?'}${timeStr}: ${share.toFixed(2)}€`);
+    });
+    j._total = byName[name].total > 0 ? byName[name].total.toFixed(2) : '';
+  });
+  const totalImporte = Object.values(mesaCost).reduce((a, v) => a + v.cost, 0);
+  const totalPagado  = Object.values(byName).reduce((a, p) => a + p.total, 0);
+  const diff = totalImporte - totalPagado;
+  document.getElementById('totMesas').textContent     = mesas.length;
+  document.getElementById('totImporte').textContent   = totalImporte.toFixed(2) + '€';
+  document.getElementById('totJugadores').textContent = Object.keys(byName).filter(k => byName[k].total > 0).length;
+  const dEl = document.getElementById('totDiff');
+  dEl.textContent = (diff >= 0 ? '+' : '') + diff.toFixed(2) + '€';
+  dEl.className = 'total-value ' + (Math.abs(diff) < 0.01 ? 'ok' : 'warn');
+  const sg = document.getElementById('summaryGrid');
+  const entries = Object.entries(byName).filter(([, p]) => p.total > 0);
+  sg.innerHTML = entries.length
+    ? entries.sort((a,b) => b[1].total - a[1].total).map(([name, p]) => `
+        <div class="summary-player">
+          <div class="summary-name">${esc(name)}</div>
+          <div class="summary-amount">${p.total.toFixed(2)}€</div>
+          <div class="summary-detail">${p.items.join('\n')}</div>
+        </div>`).join('')
+    : '<div class="summary-empty">Añade jugadores y mesas para ver el reparto.</div>';
+  jugadores.forEach(j => {
+    const el = document.getElementById('ptot_' + j.id);
+    if (el) { el.textContent = j._total ? j._total + '€' : '—'; el.className = 'player-total' + (j._total ? ' has-value' : ''); }
+  });
+}
+
+function renderAll() { renderMesas(); renderJugadores(); recalculate(); }
+
+// ══════════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════════
+async function saveSession() {
+  const fecha = document.getElementById('sessionDate').value || new Date().toISOString().slice(0,10);
+  const entry = { session_date: fecha, mesas: JSON.parse(JSON.stringify(mesas)), jugadores: JSON.parse(JSON.stringify(jugadores)) };
+  if (sbReady) {
+    try {
+      const { error } = await sb.from('gastos_sessions').insert(entry);
+      if (error) throw error;
+      await loadHistoryFromDB();
+      alert('✓ Sesión guardada en la base de datos.');
+    } catch(e) {
+      alert('⚠ Error BD: ' + e.message + '\nGuardado localmente.');
+      history.push(entry);
+      localStorage.setItem('ps-history-gastos', JSON.stringify(history));
+    }
+  } else {
+    history.push(entry);
+    localStorage.setItem('ps-history-gastos', JSON.stringify(history));
+    alert('✓ Sesión guardada localmente.');
+  }
+  if (document.getElementById('historyPanel').style.display !== 'none') renderHistory();
+}
+async function loadHistoryFromDB() {
+  if (!sbReady) { history = JSON.parse(localStorage.getItem('ps-history-gastos') || '[]'); return; }
+  try {
+    const { data, error } = await sb.from('gastos_sessions').select('*').order('created_at', { ascending: false });
+    if (error) throw error; history = data || [];
+  } catch(e) { history = JSON.parse(localStorage.getItem('ps-history-gastos') || '[]'); }
+}
+async function deleteHistory(idOrIdx) {
+  if (!confirm('¿Borrar esta sesión?')) return;
+  if (sbReady && typeof idOrIdx === 'string') {
+    await sb.from('gastos_sessions').delete().eq('id', idOrIdx);
+    await loadHistoryFromDB();
+  } else { history.splice(+idOrIdx, 1); localStorage.setItem('ps-history-gastos', JSON.stringify(history)); }
   renderHistory();
 }
-
-/* ═══════════════════════════════════════════
-   CSV — UTILIDADES
-═══════════════════════════════════════════ */
-function downloadCSV(content, filename) {
-  const blob = new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
+function toggleHistory() {
+  const p = document.getElementById('historyPanel');
+  if (p.style.display === 'none') { renderHistory(); p.style.display = ''; }
+  else p.style.display = 'none';
 }
-
-function parseCSVLine(line) {
-  const result = []; let cur = ''; let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    if (line[i] === '"') { if (inQ && line[i+1]==='"'){cur+='"';i++;} else inQ=!inQ; }
-    else if (line[i]===',' && !inQ) { result.push(cur); cur=''; }
-    else cur += line[i];
-  }
-  result.push(cur);
-  return result;
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (!history.length) { list.innerHTML = '<div class="empty-state">No hay sesiones guardadas todavía.</div>'; return; }
+  list.innerHTML = history.map((s, idx) => {
+    const id = s.id || idx; const isDb = !!s.id;
+    const ms = (s.mesas || []).map(m => esc(m.nombre)).join(', ') || '—';
+    const js = (s.jugadores || []).map(j => esc(j.nombre)).filter(Boolean).join(', ') || '—';
+    return `
+      <div class="history-session">
+        <div class="history-session-header" onclick="toggleDetail('hd${idx}')">
+          <span class="history-date">${s.session_date}</span>
+          <span class="history-meta">${(s.mesas||[]).length} mesa(s) · ${(s.jugadores||[]).filter(j=>j.nombre).length} jugador(es)</span>
+          <button class="history-del" onclick="event.stopPropagation();deleteHistory(${isDb ? `'${id}'` : idx})">Borrar</button>
+        </div>
+        <div class="history-detail" id="hd${idx}">
+          <strong style="color:var(--cyan-dim)">Mesas:</strong> ${ms}<br>
+          <strong style="color:var(--cyan-dim)">Jugadores:</strong> ${js}
+        </div>
+      </div>`;
+  }).join('');
 }
+function toggleDetail(id) { document.getElementById(id).classList.toggle('open'); }
 
-function parseCSV(text) {
-  const lines = text.trim().split('\n').filter(l=>l.trim());
-  if (lines.length < 2) return [];
-  const headers = parseCSVLine(lines[0]).map(h=>h.trim());
-  return lines.slice(1).map(line => {
-    const vals = parseCSVLine(line);
-    const obj  = {};
-    headers.forEach((h,i) => obj[h] = (vals[i]||'').trim());
-    return obj;
-  });
-}
-
-/* ═══════════════════════════════════════════
-   CSV — EXPORTAR SESIÓN ACTUAL (billar)
-═══════════════════════════════════════════ */
+// ══════════════════════════════════════════════
+//  CSV EXPORT / IMPORT
+// ══════════════════════════════════════════════
 function exportCSV() {
-  const date = document.getElementById('sessionDate').value || new Date().toISOString().slice(0,10);
-
-  // Calcular costes (misma lógica que recalculate)
-  const tableCost = {};
-  Object.entries(tablesData).forEach(([key,d]) => {
-    if (!d||d._del) return;
-    tableCost[key] = ((d.mins||0)/60)*(d.ph||0);
+  const fecha = document.getElementById('sessionDate').value;
+  let csv = '##POOL-SPLITTER-GASTOS-v2\n';
+  csv += `FECHA,${fecha}\n\n`;
+  csv += '##MESAS\nNombre,Precio_hora,Minutos\n';
+  mesas.forEach(m => { csv += `${q(m.nombre)},${m.precio},${m.minutos}\n`; });
+  csv += '\n##JUGADORES\nNombre,Mesa_nombre,Minutos\n';
+  jugadores.forEach(j => {
+    if (j.mesas.length) j.mesas.forEach(jm => { csv += `${q(j.nombre)},${q(getMesa(jm.mid)?.nombre||'')},${jm.minutos}\n`; });
+    else csv += `${q(j.nombre)},,\n`;
   });
-  const tablePlayerMins = {};
-  for (let i=1;i<=NUM_PLAYERS;i++) {
-    (playerRows[`p${i}`]||[]).forEach(row => {
-      if (!row.mesa||row.mins<=0) return;
-      tablePlayerMins[row.mesa]=(tablePlayerMins[row.mesa]||0)+row.mins;
-    });
-  }
-
-  const esc = v => `"${String(v||'').replace(/"/g,'""')}"`;
-  const rows = ['tipo,nombre,precio_hora,minutos,coste_mesa,mesas_jugador,total_jugador,fecha'];
-
-  // Mesas
-  Object.values(tablesData).filter(d=>d&&!d._del).forEach(d => {
-    const cost = ((d.mins||0)/60)*(d.ph||0);
-    rows.push([`mesa`,esc(d.name),d.ph||0,d.mins||0,cost.toFixed(2),'','',date].join(','));
-  });
-
-  // Jugadores
-  for (let i=1;i<=NUM_PLAYERS;i++) {
-    const name = document.getElementById(`pname${i}`)?.value.trim();
-    if (!name) continue;
-    const prows = (playerRows[`p${i}`]||[]).filter(r=>r.mesa&&r.mins>0);
-    if (!prows.length) continue;
-    let total=0;
-    prows.forEach(row=>{
-      const mc=tableCost[row.mesa]||0, mtm=tablePlayerMins[row.mesa]||0;
-      if (mc>0&&mtm>0) total+=(row.mins/mtm)*mc;
-    });
-    const mesaNombres = prows.map(r=>tablesData[r.mesa]?.name||r.mesa).join(';');
-    const totalMins   = prows.reduce((s,r)=>s+(r.mins||0),0);
-    rows.push([`jugador`,esc(name),'',totalMins,'',esc(mesaNombres),total.toFixed(2),date].join(','));
-  }
-
-  downloadCSV(rows.join('\n'), `poolsplitter-gastos-${date}.csv`);
+  csv += '\n##HISTORIAL\nFecha,Mesas_JSON,Jugadores_JSON\n';
+  history.forEach(h => { csv += `${h.session_date},${q(JSON.stringify(h.mesas||[]))},${q(JSON.stringify(h.jugadores||[]))}\n`; });
+  csv += '\n##PLANTILLA_JUGADORES\nNombre\n';
+  globalPlayers.forEach(p => { csv += `${q(p.name)}\n`; });
+  csv += '\n##PLANTILLA_MESAS\nNombre,Precio\n';
+  globalTables.forEach(t => { csv += `${q(t.name)},${t.price}\n`; });
+  dlCSV(csv, `pool-gastos-${fecha||'sesion'}.csv`);
 }
 
-/* ═══════════════════════════════════════════
-   CSV — IMPORTAR SESIÓN (billar)
-═══════════════════════════════════════════ */
-function importCSV(input) {
+async function importCSV(input) {
   const file = input.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
-    const data = parseCSV(e.target.result);
-    if (!data.length) { alert('CSV vacío o formato incorrecto.'); return; }
-
-    const mesas    = data.filter(r=>r.tipo==='mesa');
-    const jugadores= data.filter(r=>r.tipo==='jugador');
-    if (!mesas.length && !jugadores.length) { alert('No se encontraron filas de tipo "mesa" o "jugador".'); return; }
-
-    if (!confirm(`Importar ${mesas.length} mesa(s) y ${jugadores.length} jugador(es)? Se reemplazará la sesión actual.`)) { input.value=''; return; }
-
-    // Limpiar sesión actual
-    if (!isLocal) Object.keys(tablesData).forEach(key=>tablesRef.get(key).put({_del:true}));
-    tablesData = {};
-    document.getElementById('tablesList').innerHTML='';
-
-    // Crear mesas
-    const mesaNameToKey = {};
-    mesas.forEach(row => {
-      const key  = 't'+Date.now()+Math.random().toString(36).slice(2,5);
-      const d    = { name:row.nombre||'Mesa', ph:parseFloat(row.precio_hora)||0, mins:parseFloat(row.minutos)||0, order:Date.now(), _del:false };
-      tablesData[key] = d;
-      mesaNameToKey[row.nombre] = key;
-      patchTableRow(key, d);
-      if (!isLocal) tablesRef.get(key).put(d);
-    });
-    updateMesaSelectors();
-
-    // Limpiar jugadores
-    for (let i=1;i<=NUM_PLAYERS;i++) {
-      playerRows[`p${i}`]=[];
-      if (!isLocal) playersRef.get(`p${i}`).put({name:'',rowsJson:'[]'});
-      const ne=document.getElementById(`pname${i}`); if(ne) ne.value='';
-      const ce=document.getElementById(`pmrows${i}`); if(ce) ce.innerHTML='';
-      const te=document.getElementById(`ptotal${i}`); if(te){te.textContent='—';te.className='player-total';}
+  reader.onload = async e => {
+    const lines = e.target.result.split('\n').map(l => l.trimEnd());
+    let sec = '', nMesas = [], nJugs = [], nHist = [], nGPlayers = [], nGTables = [], fecha = '';
+    for (const line of lines) {
+      if (!line || line.startsWith('#')) { sec = line.replace(/^#+/, '').trim(); continue; }
+      if (line.startsWith('FECHA,')) { fecha = line.split(',')[1]; continue; }
+      if (/^(Nombre|Fecha)/.test(line)) continue;
+      const cols = parseCSVLine(line);
+      if (sec === 'MESAS') {
+        const [nombre, precio, minutos] = cols;
+        if (nombre) nMesas.push({ id: uid(), nombre, precio: +precio, minutos: +minutos });
+      } else if (sec === 'JUGADORES') {
+        const [nombre, mesaNombre, minutos] = cols;
+        if (!nombre) continue;
+        let j = nJugs.find(x => x.nombre === nombre);
+        if (!j) { j = { id: uid(), nombre, mesas: [] }; nJugs.push(j); }
+        const m = nMesas.find(m => m.nombre === mesaNombre);
+        if (m) j.mesas.push({ mid: m.id, minutos: +minutos });
+      } else if (sec === 'HISTORIAL') {
+        const [fd, mj, jj] = cols;
+        try { nHist.push({ session_date: fd, mesas: JSON.parse(mj), jugadores: JSON.parse(jj) }); } catch(e){}
+      } else if (sec === 'PLANTILLA_JUGADORES') {
+        const [nombre] = cols; if (nombre) nGPlayers.push({ name: nombre });
+      } else if (sec === 'PLANTILLA_MESAS') {
+        const [nombre, price] = cols; if (nombre) nGTables.push({ name: nombre, price: +price });
+      }
     }
-
-    // Restaurar jugadores
-    jugadores.slice(0, NUM_PLAYERS).forEach((row, i) => {
-      const idx = i+1;
-      const ne  = document.getElementById(`pname${idx}`);
-      if (ne) ne.value = row.nombre||'';
-      // Asignar mesas (pueden ser múltiples separadas por ;)
-      const mesaNombres = (row.mesas_jugador||'').split(';').map(s=>s.trim()).filter(Boolean);
-      const mins = parseFloat(row.minutos)||0;
-      const minsPerMesa = mesaNombres.length ? Math.round(mins/mesaNombres.length) : mins;
-      const newRows = mesaNombres.map(mn=>({ mesa: mesaNameToKey[mn]||'', mins: minsPerMesa }));
-      if (!newRows.length && mins>0) newRows.push({ mesa:'', mins });
-      playerRows[`p${idx}`] = newRows;
-      rebuildMesaRows(idx, newRows);
-      syncPlayer(idx);
-    });
-
-    if (isLocal) localSave();
-
-    // Restaurar fecha si está en el CSV
-    const fecha = data.find(r=>r.fecha)?.fecha;
-    if (fecha) { document.getElementById('sessionDate').value=fecha; saveDate(); }
-
-    recalculate();
+    mesas = nMesas; jugadores = nJugs;
+    if (fecha) document.getElementById('sessionDate').value = fecha;
+    if (nGPlayers.length) { globalPlayers = nGPlayers; }
+    if (nGTables.length)  { globalTables  = nGTables; }
+    saveGlobals(); renderPlayerTemplate(); renderTableTemplate();
+    for (const h of nHist) {
+      const exists = history.some(x => x.session_date === h.session_date);
+      if (!exists) {
+        if (sbReady) await sb.from('gastos_sessions').insert({ session_date: h.session_date, mesas: h.mesas, jugadores: h.jugadores });
+        else history.push(h);
+      }
+    }
+    if (sbReady) await loadHistoryFromDB();
+    else localStorage.setItem('ps-history-gastos', JSON.stringify(history));
+    renderAll();
+    if (document.getElementById('historyPanel').style.display !== 'none') renderHistory();
+    saveLocal();
     alert('✓ CSV importado correctamente.');
   };
   reader.readAsText(file);
-  input.value='';
+  input.value = '';
 }
 
-loadDate();
+// ══════════════════════════════════════════════
+//  LOCAL STORAGE
+// ══════════════════════════════════════════════
+function saveLocal() {
+  localStorage.setItem('ps-gastos', JSON.stringify({ mesas, jugadores, fecha: document.getElementById('sessionDate').value }));
+  pushGun();
+}
+function loadLocal() {
+  try {
+    const d = JSON.parse(localStorage.getItem('ps-gastos') || '{}');
+    mesas = d.mesas || []; jugadores = d.jugadores || [];
+    if (d.fecha) document.getElementById('sessionDate').value = d.fecha;
+  } catch(e) {}
+  history = JSON.parse(localStorage.getItem('ps-history-gastos') || '[]');
+}
 
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+let _uidC = 0;
+function uid() { return 't' + Date.now() + (++_uidC); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function q(s)   { return '"' + String(s||'').replace(/"/g,'""') + '"'; }
+function dlCSV(csv, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff'+csv], { type:'text/csv;charset=utf-8;' }));
+  a.download = name; a.click();
+}
+function parseCSVLine(line) {
+  const res = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c==='"'&&!inQ){inQ=true;}
+    else if(c==='"'&&inQ&&line[i+1]==='"'){cur+='"';i++;}
+    else if(c==='"'&&inQ){inQ=false;}
+    else if(c===','&&!inQ){res.push(cur);cur='';}
+    else cur+=c;
+  }
+  res.push(cur); return res;
+}
 
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+async function pingServer() {
+  try {
+    await fetch('https://gun-manhattan.herokuapp.com/gun', {
+      mode: 'no-cors', signal: AbortSignal.timeout(4000)
+    });
+    return true;
+  } catch(e) { return false; }
+}
 
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('sessionDate').value = new Date().toISOString().slice(0,10);
+  initSession();
+  loadLocal();
+  loadGlobals();
+  renderPlayerTemplate();
+  renderTableTemplate();
+  updateDataLists();
+  document.getElementById('cfgUrl').value = SUPA_URL;
+  document.getElementById('cfgKey').value = SUPA_KEY;
+  initSupabase();
+  renderAll();
+  // Register service worker (PWA)
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+  // Auto-connect en directo; si falla, pedir confirmación para solo local
+  setMode('live');
+  pingServer().then(ok => {
+    if (!ok) {
+      const goLocal = confirm('⚠ No se pudo conectar al servidor en tiempo real.\n¿Cambiar a modo solo local?');
+      if (goLocal) setMode('local');
+    }
+  });
+  // Secret: 5 clicks on the header ball → open BD config
+  let _bc = 0, _bt = null;
+  document.querySelector('.ball').style.cursor = 'default';
+  document.querySelector('.ball').addEventListener('click', () => {
+    _bc++; clearTimeout(_bt);
+    if (_bc >= 5) { _bc = 0; openCfg(); }
+    else _bt = setTimeout(() => _bc = 0, 3000);
+  });
+});
 </script>
 </body>
 </html>
