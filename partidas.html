@@ -222,9 +222,9 @@ label { font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.
 </div>
 
 <!-- DB STRIP -->
-<div class="db-strip">
-  <div class="db-dot off" id="dbDot"></div>
-  <span class="db-label" id="dbLabel">BD no configurada</span>
+<div style="display:none">
+  <div id="dbDot"></div>
+  <span id="dbLabel"></span>
 </div>
 
 <!-- DATE + ACTIONS BAR -->
@@ -263,8 +263,16 @@ label { font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.
     <button class="mode-btn active-local" id="btnLocal" onclick="setMode('local')">Solo local</button>
     <button class="mode-btn" id="btnLive"  onclick="setMode('live')">En directo</button>
   </div>
-  <div class="session-id-box" id="sessionIdBox">—</div>
-  <button class="btn-copy" id="btnCopy" onclick="copyLink()">Copiar enlace</button>
+  <div style="display:flex;align-items:center;gap:.4rem;flex:1;min-width:160px">
+    <label style="margin:0;font-size:.6rem;letter-spacing:.1em;color:var(--silver-dark);white-space:nowrap">CÓDIGO</label>
+    <input id="sessionCodeInput" type="text" maxlength="12"
+      style="background:var(--navy);border:1px solid rgba(59,130,246,.3);border-radius:4px;color:var(--cyan);font-family:'JetBrains Mono',monospace;font-size:.88rem;padding:.3rem .6rem;width:110px;letter-spacing:.12em;text-transform:uppercase;outline:none"
+      placeholder="CÓDIGO"
+      onkeydown="if(event.key==='Enter')joinSession()"
+      oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+    <button class="btn-copy" onclick="joinSession()" style="white-space:nowrap">Unirse</button>
+  </div>
+  <button class="btn-copy" id="btnCopy" onclick="copyLink()" title="Copiar enlace" style="font-size:1.1rem;padding:.3rem .6rem">🔗</button>
   <a class="nav-link" id="linkGastos" href="index.html">← Gastos</a>
 </div>
 
@@ -330,11 +338,36 @@ function setDb(state, msg) {
 let isLocal = true, gun = null, gunNode = null, sessionId = '', lastLocal = 0;
 
 function initSession() {
-  sessionId = location.hash.slice(1).replace(/[^a-zA-Z0-9]/g,'');
-  if (!sessionId) sessionId = Math.random().toString(36).slice(2,8).toUpperCase();
+  let code = location.hash.slice(1).replace(/[^A-Z0-9a-z]/g,'').toUpperCase();
+  if (!code) code = localStorage.getItem('ps-session-code') || '';
+  if (!code) code = Math.random().toString(36).slice(2,8).toUpperCase();
+  sessionId = code;
+  applySessionCode(code);
+}
+
+function applySessionCode(code) {
+  sessionId = code.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  localStorage.setItem('ps-session-code', sessionId);
   location.hash = sessionId;
-  document.getElementById('sessionIdBox').textContent = sessionId;
+  document.getElementById('sessionCodeInput').value = sessionId;
   document.getElementById('linkGastos').href = 'index.html#' + sessionId;
+  document.getElementById('connLabel').textContent = isLocal ? 'Solo local' : 'En directo · ' + sessionId;
+  if (!isLocal) { gun = null; gunNode = null; setMode('live'); }
+}
+
+function joinSession() {
+  const code = document.getElementById('sessionCodeInput').value.trim();
+  if (!code) return;
+  applySessionCode(code);
+  if (isLocal) setMode('live');
+  if (gunNode) gunNode.once(d => {
+    if (d && d.state) try {
+      const s = JSON.parse(d.state);
+      matches = s.matches || [];
+      document.getElementById('sessionDate').value = s.fecha || '';
+      renderAll();
+    } catch(e) {}
+  });
 }
 
 function setMode(mode) {
@@ -372,8 +405,8 @@ function pushGun() {
 function copyLink() {
   navigator.clipboard.writeText(location.href);
   const btn = document.getElementById('btnCopy');
-  btn.textContent = '✓ Copiado'; btn.classList.add('copied');
-  setTimeout(() => { btn.textContent = 'Copiar enlace'; btn.classList.remove('copied'); }, 2000);
+  btn.textContent = '✓'; btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = '🔗'; btn.classList.remove('copied'); }, 2000);
 }
 
 // ══════════════════════════════════════════════════════════
