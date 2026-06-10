@@ -326,12 +326,7 @@ function setDb(state, msg) {
 let isLocal = true, gun = null, gunNode = null, sessionId = '', lastLocal = 0;
 
 function initSession() {
-  // Priority: URL hash → localStorage → generate new
-  let code = location.hash.slice(1).replace(/[^A-Z0-9a-z]/g,'').toUpperCase();
-  if (!code) code = localStorage.getItem('ps-session-code') || '';
-  if (!code) code = Math.random().toString(36).slice(2,8).toUpperCase();
-  sessionId = code;
-  applySessionCode(code);
+  applySessionCode('REMPXL');
 }
 
 function applySessionCode(code) {
