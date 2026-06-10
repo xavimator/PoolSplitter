@@ -138,6 +138,7 @@ input[type="time"]:focus{border-color:var(--blue-b);box-shadow:0 0 0 2px rgba(59
 .empty-state{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--silver-dark);text-align:center;padding:1.2rem .5rem}
 @media(max-width:600px){.card{padding:1rem}.mesa-row{grid-template-columns:1fr 70px 80px 32px}}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -194,7 +195,7 @@ input[type="time"]:focus{border-color:var(--blue-b);box-shadow:0 0 0 2px rgba(59
       oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
     <button class="btn-copy" onclick="joinSession()" style="white-space:nowrap">Unirse</button>
   </div>
-  <button class="btn-copy" id="btnCopy" onclick="copyLink()" title="Copiar enlace" style="font-size:1.1rem;padding:.3rem .6rem">🔗</button>
+  <button class="btn-copy" id="btnCopy" onclick="openShare()" title="Copiar enlace" style="font-size:1.1rem;padding:.3rem .6rem">🔗</button>
   <a class="nav-link" id="linkPartidas" href="partidas.html">Partidas →</a>
 </div>
 
@@ -286,10 +287,10 @@ let SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 let sb = null, sbReady = false;
 
 function saveCfg() {
-  SUPA_URL = document.getElementById('cfgUrl').value.trim();
-  SUPA_KEY = document.getElementById('cfgKey').value.trim();
-  
-  
+  const u = document.getElementById('cfgUrl').value.trim();
+  const k = document.getElementById('cfgKey').value.trim();
+  if (u) SUPA_URL = u;
+  if (k) SUPA_KEY = k;
 }
 function openCfg()  { document.getElementById('cfgOverlay').classList.add('open'); }
 function closeCfg() { document.getElementById('cfgOverlay').classList.remove('open'); }
@@ -313,6 +314,19 @@ async function checkSupabase() {
     if (error) throw error;
     sbReady = true; setDb('ok', 'BD conectada');
     await loadHistoryFromDB();
+    // Auto-load today's data if session is empty
+    const fecha = document.getElementById('sessionDate').value;
+    if (fecha && !mesas.length && !jugadores.length) {
+      const { data } = await sb.from('gastos_sessions')
+        .select('*').eq('session_code', sessionId).eq('session_date', fecha).limit(1);
+      if (data && data.length) {
+        const s = data[0];
+        mesas = (s.mesas||[]).map(m => ({...m, id: m.id||uid(), horaEntrada: m.horaEntrada||'', horaSalida: m.horaSalida||''}));
+        jugadores = (s.jugadores||[]).map(j => ({...j, id: j.id||uid(),
+          mesas: (j.mesas||[]).map(jm => ({...jm, mid: jm.mid||mesas[0]?.id||'', horaEntrada: jm.horaEntrada||'', horaSalida: jm.horaSalida||''}))}));
+        renderAll(); saveLocal();
+      }
+    }
   } catch(e) { sbReady = false; setDb('err', 'Error BD'); }
 }
 function setDb(state, msg) {
@@ -1004,5 +1018,41 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
+
+<!-- SHARE MODAL -->
+<div id="shareOverlay" onclick="if(event.target===this)closeShare()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:999;align-items:center;justify-content:center">
+  <div style="background:#0b1a35;border:1px solid rgba(59,130,246,.35);border-radius:10px;padding:1.5rem;width:min(340px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.8);text-align:center">
+    <div style="font-family:Barlow Condensed,sans-serif;font-size:1.1rem;letter-spacing:.15em;text-transform:uppercase;color:#38bdf8;margin-bottom:1rem">Compartir sesión</div>
+    <div id="qrContainer" style="background:#fff;border-radius:8px;padding:12px;display:inline-block;margin-bottom:1rem"></div>
+    <div style="font-family:JetBrains Mono,monospace;font-size:.7rem;color:#94a3b8;word-break:break-all;margin-bottom:1rem;padding:0 .5rem" id="shareUrl"></div>
+    <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap">
+      <button onclick="doShareCopy()" id="shareCopyBtn" style="background:#1d4ed8;border:1px solid #3b82f6;color:#fff;font-family:Barlow Condensed,sans-serif;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:.5rem 1.2rem;border-radius:4px;cursor:pointer;font-size:.9rem">📋 Copiar enlace</button>
+      <button onclick="closeShare()" style="background:transparent;border:1px solid rgba(255,255,255,.15);color:#94a3b8;font-family:Barlow Condensed,sans-serif;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:.5rem 1.2rem;border-radius:4px;cursor:pointer;font-size:.9rem">Cerrar</button>
+    </div>
+  </div>
+</div>
+<script>
+function openShare() {
+  const url = location.href.split("#")[0] + "#" + sessionId;
+  document.getElementById("shareUrl").textContent = url;
+  document.getElementById("qrContainer").innerHTML = "";
+  new QRCode(document.getElementById("qrContainer"), {
+    text: url, width: 180, height: 180,
+    colorDark: "#000000", colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  const o = document.getElementById("shareOverlay");
+  o.style.display = "flex";
+}
+function closeShare() {
+  document.getElementById("shareOverlay").style.display = "none";
+}
+function doShareCopy() {
+  const url = document.getElementById("shareUrl").textContent;
+  navigator.clipboard.writeText(url);
+  const btn = document.getElementById("shareCopyBtn");
+  btn.textContent = "✓ Copiado"; 
+  setTimeout(() => btn.textContent = "📋 Copiar enlace", 2000);
+}</script>
 </body>
 </html>

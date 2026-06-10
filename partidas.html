@@ -194,6 +194,7 @@ label { font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.
   .teams-grid { grid-template-columns:1fr 30px 1fr; }
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 <datalist id="dlPlayers"></datalist>
@@ -236,6 +237,7 @@ label { font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.
       onchange="saveLocal()">
   </div>
   <div class="actions">
+    <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="loadSessionByDate()">📅 Cargar del día</button>
     <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="saveSession()">💾 Guardar sesión</button>
     <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="toggleStats()">📊 Estadísticas</button>
     <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="exportCSV()">⬇ Exportar CSV</button>
@@ -272,7 +274,7 @@ label { font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.
       oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
     <button class="btn-copy" onclick="joinSession()" style="white-space:nowrap">Unirse</button>
   </div>
-  <button class="btn-copy" id="btnCopy" onclick="copyLink()" title="Copiar enlace" style="font-size:1.1rem;padding:.3rem .6rem">🔗</button>
+  <button class="btn-copy" id="btnCopy" onclick="openShare()" title="Copiar enlace" style="font-size:1.1rem;padding:.3rem .6rem">🔗</button>
   <a class="nav-link" id="linkGastos" href="index.html">← Gastos</a>
 </div>
 
@@ -294,15 +296,15 @@ label { font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.
 // ══════════════════════════════════════════════════════════
 //  SUPABASE
 // ══════════════════════════════════════════════════════════
-let SUPA_URL = localStorage.getItem('sb_url') || '';
-let SUPA_KEY = localStorage.getItem('sb_key') || '';
+let SUPA_URL = 'https://qbkukfpkcxoxiaewngvx.supabase.co';
+let SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFia3VrZnBrY3hveGlhZXduZ3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjYyMTMsImV4cCI6MjA5NDgwMjIxM30.qAY7A0oFi4HiNyOEp3PgTUgnaNKzwKCY8rpn4cj4XAo';
 let sb = null, sbReady = false;
 
 function saveCfg() {
-  SUPA_URL = document.getElementById('cfgUrl').value.trim();
-  SUPA_KEY = document.getElementById('cfgKey').value.trim();
-  localStorage.setItem('sb_url', SUPA_URL);
-  localStorage.setItem('sb_key', SUPA_KEY);
+  const u = document.getElementById('cfgUrl').value.trim();
+  const k = document.getElementById('cfgKey').value.trim();
+  if (u) SUPA_URL = u;
+  if (k) SUPA_KEY = k;
 }
 function openCfg()  { const o=document.getElementById('cfgOverlay'); o.style.display='flex'; }
 function closeCfg() { document.getElementById('cfgOverlay').style.display='none'; }
@@ -325,6 +327,16 @@ async function checkSupabase() {
     if (error) throw error;
     sbReady = true; setDb('ok', 'BD conectada');
     await loadHistoryFromDB();
+    // Auto-load today's data if session is empty
+    const fecha = document.getElementById('sessionDate').value;
+    if (fecha && !matches.length) {
+      const { data } = await sb.from('partidas_sessions')
+        .select('*').eq('session_code', sessionId).eq('session_date', fecha).limit(1);
+      if (data && data.length) {
+        matches = (data[0].partidas||[]).map(p => ({...p, id: p.id||uid(), equipo1: p.equipo1||[], equipo2: p.equipo2||[]}));
+        renderAll(); saveLocal();
+      }
+    }
   } catch(e) { sbReady = false; setDb('err', 'Error: ' + e.message.slice(0,40)); }
 }
 function setDb(state, msg) {
@@ -338,11 +350,7 @@ function setDb(state, msg) {
 let isLocal = true, gun = null, gunNode = null, sessionId = '', lastLocal = 0;
 
 function initSession() {
-  let code = location.hash.slice(1).replace(/[^A-Z0-9a-z]/g,'').toUpperCase();
-  if (!code) code = localStorage.getItem('ps-session-code') || '';
-  if (!code) code = Math.random().toString(36).slice(2,8).toUpperCase();
-  sessionId = code;
-  applySessionCode(code);
+  applySessionCode('REMPXL');
 }
 
 function applySessionCode(code) {
@@ -629,11 +637,22 @@ function toggleDetail(id) { document.getElementById(id).classList.toggle('open')
 async function saveSession() {
   const fecha = document.getElementById('sessionDate').value || new Date().toISOString().slice(0,10);
   const stats = calcLeaderboard() || {};
-  const entry = { session_date: fecha, partidas: JSON.parse(JSON.stringify(matches)), clasificacion: stats };
+  const entry = {
+    session_code: sessionId,
+    session_date: fecha,
+    partidas: JSON.parse(JSON.stringify(matches)),
+    clasificacion: stats
+  };
   if (sbReady) {
     try {
-      const { error } = await sb.from('partidas_sessions').insert(entry);
-      if (error) throw error;
+      const { data: existing } = await sb.from('partidas_sessions')
+        .select('id').eq('session_code', sessionId).eq('session_date', fecha).limit(1);
+      if (existing && existing.length) {
+        await sb.from('partidas_sessions').update({ partidas: entry.partidas, clasificacion: entry.clasificacion })
+          .eq('id', existing[0].id);
+      } else {
+        await sb.from('partidas_sessions').insert(entry);
+      }
       await loadHistoryFromDB();
       alert('✓ Sesión guardada en la base de datos.');
     } catch(e) {
@@ -649,10 +668,30 @@ async function saveSession() {
   if (statsOpen) renderStats();
 }
 
+async function loadSessionByDate() {
+  const fecha = document.getElementById('sessionDate').value;
+  if (!fecha) { alert('Selecciona una fecha primero.'); return; }
+  if (!sbReady) { alert('La base de datos no está conectada.'); return; }
+  try {
+    const { data, error } = await sb.from('partidas_sessions')
+      .select('*').eq('session_code', sessionId).eq('session_date', fecha).limit(1);
+    if (error) throw error;
+    if (!data || !data.length) { alert(`No hay datos para el código "${sessionId}" en la fecha ${fecha}.`); return; }
+    const s = data[0];
+    matches = (s.partidas || []).map(p => ({
+      ...p, id: p.id || uid(),
+      equipo1: p.equipo1 || [], equipo2: p.equipo2 || []
+    }));
+    renderAll(); saveLocal();
+    alert(`✓ Datos del ${fecha} cargados correctamente.`);
+  } catch(e) { alert('Error al cargar: ' + e.message); }
+}
+
 async function loadHistoryFromDB() {
   if (!sbReady) { sessionHistory = JSON.parse(localStorage.getItem('ps-history-partidas') || '[]'); return; }
   try {
-    const { data, error } = await sb.from('partidas_sessions').select('*').order('created_at', { ascending: false });
+    const { data, error } = await sb.from('partidas_sessions')
+      .select('*').eq('session_code', sessionId).order('session_date', { ascending: false });
     if (error) throw error;
     sessionHistory = data || [];
   } catch(e) { sessionHistory = JSON.parse(localStorage.getItem('ps-history-partidas') || '[]'); }
@@ -675,8 +714,8 @@ async function deleteHistory(idOrIdx) {
 // ══════════════════════════════════════════════════════════
 function exportCSV() {
   const fecha = document.getElementById('sessionDate').value;
-  let csv = '##POOL-SPLITTER-PARTIDAS-v2\n';
-  csv += `FECHA,${fecha}\n\n`;
+  let csv = '##POOL-SPLITTER-PARTIDAS-v3\n';
+  csv += `FECHA,${fecha}\nCODIGO,${sessionId}\n\n`;
   csv += '##PARTIDAS\nMesa,Formato,Equipo1,Equipo2,Ganador\n';
   matches.forEach(m => {
     csv += `${q(m.mesa)},${m.formato},${q(m.equipo1.join('|'))},${q(m.equipo2.join('|'))},${m.ganador||''}\n`;
@@ -685,7 +724,7 @@ function exportCSV() {
   sessionHistory.forEach(h => {
     csv += `${h.session_date},${q(JSON.stringify(h.partidas||[]))},${q(JSON.stringify(h.clasificacion||{}))}\n`;
   });
-  dlCSV(csv, `pool-partidas-${fecha||'sesion'}.csv`);
+  dlCSV(csv, `pool-partidas-${sessionId}-${fecha||'sesion'}.csv`);
 }
 
 async function importCSV(input) {
@@ -788,8 +827,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initSession();
   loadLocal();
   loadGlobalPlayers();
-  document.getElementById('cfgUrl').value = SUPA_URL;
-  document.getElementById('cfgKey').value = SUPA_KEY;
+  
+  
   initSupabase();
   renderAll();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
@@ -820,5 +859,41 @@ function loadGlobalPlayers() {
 }
 
 </script>
+
+<!-- SHARE MODAL -->
+<div id="shareOverlay" onclick="if(event.target===this)closeShare()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:999;align-items:center;justify-content:center">
+  <div style="background:#0b1a35;border:1px solid rgba(59,130,246,.35);border-radius:10px;padding:1.5rem;width:min(340px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.8);text-align:center">
+    <div style="font-family:Barlow Condensed,sans-serif;font-size:1.1rem;letter-spacing:.15em;text-transform:uppercase;color:#38bdf8;margin-bottom:1rem">Compartir sesión</div>
+    <div id="qrContainer" style="background:#fff;border-radius:8px;padding:12px;display:inline-block;margin-bottom:1rem"></div>
+    <div style="font-family:JetBrains Mono,monospace;font-size:.7rem;color:#94a3b8;word-break:break-all;margin-bottom:1rem;padding:0 .5rem" id="shareUrl"></div>
+    <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap">
+      <button onclick="doShareCopy()" id="shareCopyBtn" style="background:#1d4ed8;border:1px solid #3b82f6;color:#fff;font-family:Barlow Condensed,sans-serif;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:.5rem 1.2rem;border-radius:4px;cursor:pointer;font-size:.9rem">📋 Copiar enlace</button>
+      <button onclick="closeShare()" style="background:transparent;border:1px solid rgba(255,255,255,.15);color:#94a3b8;font-family:Barlow Condensed,sans-serif;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:.5rem 1.2rem;border-radius:4px;cursor:pointer;font-size:.9rem">Cerrar</button>
+    </div>
+  </div>
+</div>
+<script>
+function openShare() {
+  const url = location.href.split("#")[0] + "#" + sessionId;
+  document.getElementById("shareUrl").textContent = url;
+  document.getElementById("qrContainer").innerHTML = "";
+  new QRCode(document.getElementById("qrContainer"), {
+    text: url, width: 180, height: 180,
+    colorDark: "#000000", colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  const o = document.getElementById("shareOverlay");
+  o.style.display = "flex";
+}
+function closeShare() {
+  document.getElementById("shareOverlay").style.display = "none";
+}
+function doShareCopy() {
+  const url = document.getElementById("shareUrl").textContent;
+  navigator.clipboard.writeText(url);
+  const btn = document.getElementById("shareCopyBtn");
+  btn.textContent = "✓ Copiado"; 
+  setTimeout(() => btn.textContent = "📋 Copiar enlace", 2000);
+}</script>
 </body>
 </html>
