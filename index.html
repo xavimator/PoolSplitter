@@ -205,6 +205,7 @@ input[type="time"]:focus{border-color:var(--blue-b);box-shadow:0 0 0 2px rgba(59
     <input type="date" id="sessionDate" style="background:var(--navy);border:1px solid rgba(59,130,246,.25);border-radius:4px;color:var(--white);font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.35rem .6rem;outline:none;width:auto" onchange="saveLocal()">
   </div>
   <div class="actions">
+    <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="loadSessionByDate()">📅 Cargar del día</button>
     <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="saveSession()">💾 Guardar sesión</button>
     <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="toggleHistory()">📚 Historial</button>
     <button class="btn-ghost" style="font-size:.82rem;padding:.35rem 1rem" onclick="exportCSV()">⬇ Exportar CSV</button>
@@ -747,17 +748,28 @@ function renderAll() { renderMesas(); renderJugadores(); recalculate(); }
 // ══════════════════════════════════════════════
 async function saveSession() {
   const fecha = document.getElementById('sessionDate').value || new Date().toISOString().slice(0,10);
-  const entry = { session_date: fecha, mesas: JSON.parse(JSON.stringify(mesas)), jugadores: JSON.parse(JSON.stringify(jugadores)) };
+  const entry = {
+    session_code: sessionId,
+    session_date: fecha,
+    mesas: JSON.parse(JSON.stringify(mesas)),
+    jugadores: JSON.parse(JSON.stringify(jugadores))
+  };
   if (sbReady) {
     try {
-      const { error } = await sb.from('gastos_sessions').insert(entry);
-      if (error) throw error;
+      // Upsert: si ya existe sesión con mismo código+fecha, actualiza
+      const { data: existing } = await sb.from('gastos_sessions')
+        .select('id').eq('session_code', sessionId).eq('session_date', fecha).limit(1);
+      if (existing && existing.length) {
+        await sb.from('gastos_sessions').update({ mesas: entry.mesas, jugadores: entry.jugadores })
+          .eq('id', existing[0].id);
+      } else {
+        await sb.from('gastos_sessions').insert(entry);
+      }
       await loadHistoryFromDB();
       alert('✓ Sesión guardada en la base de datos.');
     } catch(e) {
       alert('⚠ Error BD: ' + e.message + '\nGuardado localmente.');
-      history.push(entry);
-      localStorage.setItem('ps-history-gastos', JSON.stringify(history));
+      history.push(entry); localStorage.setItem('ps-history-gastos', JSON.stringify(history));
     }
   } else {
     history.push(entry);
@@ -766,11 +778,35 @@ async function saveSession() {
   }
   if (document.getElementById('historyPanel').style.display !== 'none') renderHistory();
 }
+
+async function loadSessionByDate() {
+  const fecha = document.getElementById('sessionDate').value;
+  if (!fecha) { alert('Selecciona una fecha primero.'); return; }
+  if (!sbReady) { alert('La base de datos no está conectada.'); return; }
+  try {
+    const { data, error } = await sb.from('gastos_sessions')
+      .select('*').eq('session_code', sessionId).eq('session_date', fecha).limit(1);
+    if (error) throw error;
+    if (!data || !data.length) { alert(`No hay datos guardados para el código "${sessionId}" en la fecha ${fecha}.`); return; }
+    const s = data[0];
+    // Restore IDs if missing (older data)
+    mesas = (s.mesas || []).map(m => ({ ...m, id: m.id || uid(), horaEntrada: m.horaEntrada||'', horaSalida: m.horaSalida||'' }));
+    jugadores = (s.jugadores || []).map(j => ({
+      ...j, id: j.id || uid(),
+      mesas: (j.mesas||[]).map(jm => ({ ...jm, mid: jm.mid||mesas[0]?.id||'', horaEntrada: jm.horaEntrada||'', horaSalida: jm.horaSalida||'' }))
+    }));
+    renderAll(); saveLocal();
+    alert(`✓ Datos del ${fecha} cargados correctamente.`);
+  } catch(e) { alert('Error al cargar: ' + e.message); }
+}
+
 async function loadHistoryFromDB() {
   if (!sbReady) { history = JSON.parse(localStorage.getItem('ps-history-gastos') || '[]'); return; }
   try {
-    const { data, error } = await sb.from('gastos_sessions').select('*').order('created_at', { ascending: false });
-    if (error) throw error; history = data || [];
+    const { data, error } = await sb.from('gastos_sessions')
+      .select('*').eq('session_code', sessionId).order('session_date', { ascending: false });
+    if (error) throw error;
+    history = data || [];
   } catch(e) { history = JSON.parse(localStorage.getItem('ps-history-gastos') || '[]'); }
 }
 async function deleteHistory(idOrIdx) {
@@ -814,14 +850,16 @@ function toggleDetail(id) { document.getElementById(id).classList.toggle('open')
 // ══════════════════════════════════════════════
 function exportCSV() {
   const fecha = document.getElementById('sessionDate').value;
-  let csv = '##POOL-SPLITTER-GASTOS-v2\n';
-  csv += `FECHA,${fecha}\n\n`;
-  csv += '##MESAS\nNombre,Precio_hora,Minutos\n';
-  mesas.forEach(m => { csv += `${q(m.nombre)},${m.precio},${m.minutos}\n`; });
-  csv += '\n##JUGADORES\nNombre,Mesa_nombre,Minutos\n';
+  let csv = '##POOL-SPLITTER-GASTOS-v3\n';
+  csv += `FECHA,${fecha}\nCODIGO,${sessionId}\n\n`;
+  csv += '##MESAS\nNombre,Precio_hora,HoraEntrada,HoraSalida\n';
+  mesas.forEach(m => { csv += `${q(m.nombre)},${m.precio},${m.horaEntrada||''},${m.horaSalida||''}\n`; });
+  csv += '\n##JUGADORES\nNombre,Mesa_nombre,HoraEntrada,HoraSalida\n';
   jugadores.forEach(j => {
-    if (j.mesas.length) j.mesas.forEach(jm => { csv += `${q(j.nombre)},${q(getMesa(jm.mid)?.nombre||'')},${jm.minutos}\n`; });
-    else csv += `${q(j.nombre)},,\n`;
+    if (j.mesas.length) j.mesas.forEach(jm => {
+      csv += `${q(j.nombre)},${q(getMesa(jm.mid)?.nombre||'')},${jm.horaEntrada||''},${jm.horaSalida||''}\n`;
+    });
+    else csv += `${q(j.nombre)},,,\n`;
   });
   csv += '\n##HISTORIAL\nFecha,Mesas_JSON,Jugadores_JSON\n';
   history.forEach(h => { csv += `${h.session_date},${q(JSON.stringify(h.mesas||[]))},${q(JSON.stringify(h.jugadores||[]))}\n`; });
@@ -829,7 +867,7 @@ function exportCSV() {
   globalPlayers.forEach(p => { csv += `${q(p.name)}\n`; });
   csv += '\n##PLANTILLA_MESAS\nNombre,Precio\n';
   globalTables.forEach(t => { csv += `${q(t.name)},${t.price}\n`; });
-  dlCSV(csv, `pool-gastos-${fecha||'sesion'}.csv`);
+  dlCSV(csv, `pool-gastos-${sessionId}-${fecha||'sesion'}.csv`);
 }
 
 async function importCSV(input) {
@@ -840,19 +878,20 @@ async function importCSV(input) {
     let sec = '', nMesas = [], nJugs = [], nHist = [], nGPlayers = [], nGTables = [], fecha = '';
     for (const line of lines) {
       if (!line || line.startsWith('#')) { sec = line.replace(/^#+/, '').trim(); continue; }
-      if (line.startsWith('FECHA,')) { fecha = line.split(',')[1]; continue; }
+      if (line.startsWith('FECHA,'))  { fecha = line.split(',')[1]; continue; }
+      if (line.startsWith('CODIGO,')) continue; // ignore, session code managed separately
       if (/^(Nombre|Fecha)/.test(line)) continue;
       const cols = parseCSVLine(line);
       if (sec === 'MESAS') {
-        const [nombre, precio, minutos] = cols;
-        if (nombre) nMesas.push({ id: uid(), nombre, precio: +precio, minutos: +minutos });
+        const [nombre, precio, horaEntrada, horaSalida] = cols;
+        if (nombre) nMesas.push({ id: uid(), nombre, precio: +precio, minutos: 0, horaEntrada: horaEntrada||'', horaSalida: horaSalida||'' });
       } else if (sec === 'JUGADORES') {
-        const [nombre, mesaNombre, minutos] = cols;
+        const [nombre, mesaNombre, horaEntrada, horaSalida] = cols;
         if (!nombre) continue;
         let j = nJugs.find(x => x.nombre === nombre);
         if (!j) { j = { id: uid(), nombre, mesas: [] }; nJugs.push(j); }
         const m = nMesas.find(m => m.nombre === mesaNombre);
-        if (m) j.mesas.push({ mid: m.id, minutos: +minutos });
+        if (m) j.mesas.push({ mid: m.id, minutos: 0, horaEntrada: horaEntrada||'', horaSalida: horaSalida||'' });
       } else if (sec === 'HISTORIAL') {
         const [fd, mj, jj] = cols;
         try { nHist.push({ session_date: fd, mesas: JSON.parse(mj), jugadores: JSON.parse(jj) }); } catch(e){}
