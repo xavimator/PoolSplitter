@@ -327,16 +327,21 @@ async function checkSupabase() {
     if (error) throw error;
     sbReady = true; setDb('ok', 'BD conectada');
     await loadHistoryFromDB();
-    // Auto-load today's data if session is empty
+    // Auto-load today's matches from Supabase
     const fecha = document.getElementById('sessionDate').value;
-    if (fecha && !matches.length) {
+    if (fecha) {
       const { data } = await sb.from('partidas_sessions')
         .select('*').eq('session_code', sessionId).eq('session_date', fecha).limit(1);
       if (data && data.length) {
-        matches = (data[0].partidas||[]).map(p => ({...p, id: p.id||uid(), equipo1: p.equipo1||[], equipo2: p.equipo2||[]}));
+        matches = (data[0].partidas||[]).map(p => ({
+          ...p, id: p.id||uid(), equipo1: p.equipo1||[], equipo2: p.equipo2||[]
+        }));
         renderAll(); saveLocal();
       }
     }
+    // Always render stats panel with history (even if closed)
+    renderGlobalRanking();
+    renderSessionHistory();
   } catch(e) { sbReady = false; setDb('err', 'Error: ' + e.message.slice(0,40)); }
 }
 function setDb(state, msg) {
@@ -683,6 +688,8 @@ async function loadSessionByDate() {
       equipo1: p.equipo1 || [], equipo2: p.equipo2 || []
     }));
     renderAll(); saveLocal();
+    renderGlobalRanking(); renderSessionHistory();
+    if (!statsOpen) { document.getElementById('statsPanel').style.display=''; statsOpen=true; }
     alert(`✓ Datos del ${fecha} cargados correctamente.`);
   } catch(e) { alert('Error al cargar: ' + e.message); }
 }

@@ -1,4 +1,4 @@
-const CACHE = 'poolsplitter-v1';
+const CACHE = 'poolsplitter-v3';
 const ASSETS = [
   './index.html',
   './partidas.html',

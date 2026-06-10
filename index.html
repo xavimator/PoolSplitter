@@ -314,9 +314,9 @@ async function checkSupabase() {
     if (error) throw error;
     sbReady = true; setDb('ok', 'BD conectada');
     await loadHistoryFromDB();
-    // Auto-load today's data if session is empty
+    // Auto-load today's data from Supabase
     const fecha = document.getElementById('sessionDate').value;
-    if (fecha && !mesas.length && !jugadores.length) {
+    if (fecha) {
       const { data } = await sb.from('gastos_sessions')
         .select('*').eq('session_code', sessionId).eq('session_date', fecha).limit(1);
       if (data && data.length) {
