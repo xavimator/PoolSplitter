@@ -295,15 +295,15 @@ label { font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.
 // ══════════════════════════════════════════════════════════
 //  SUPABASE
 // ══════════════════════════════════════════════════════════
-let SUPA_URL = localStorage.getItem('sb_url') || '';
-let SUPA_KEY = localStorage.getItem('sb_key') || '';
+let SUPA_URL = 'https://qbkukfpkcxoxiaewngvx.supabase.co';
+let SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFia3VrZnBrY3hveGlhZXduZ3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjYyMTMsImV4cCI6MjA5NDgwMjIxM30.qAY7A0oFi4HiNyOEp3PgTUgnaNKzwKCY8rpn4cj4XAo';
 let sb = null, sbReady = false;
 
 function saveCfg() {
   SUPA_URL = document.getElementById('cfgUrl').value.trim();
   SUPA_KEY = document.getElementById('cfgKey').value.trim();
-  localStorage.setItem('sb_url', SUPA_URL);
-  localStorage.setItem('sb_key', SUPA_KEY);
+  
+  
 }
 function openCfg()  { const o=document.getElementById('cfgOverlay'); o.style.display='flex'; }
 function closeCfg() { document.getElementById('cfgOverlay').style.display='none'; }
@@ -820,8 +820,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initSession();
   loadLocal();
   loadGlobalPlayers();
-  document.getElementById('cfgUrl').value = SUPA_URL;
-  document.getElementById('cfgKey').value = SUPA_KEY;
+  
+  
   initSupabase();
   renderAll();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
